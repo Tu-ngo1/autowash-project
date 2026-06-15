@@ -1,6 +1,5 @@
 package com.autowash.dto.response;
 
-import com.autowash.enums.TierLevel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -9,8 +8,9 @@ import lombok.Data;
 public class ProfileResponse {
 
     private Long id;
-    private Long userId;
-    private TierLevel tierLevel;
+    private String fullName;
+    private String phone;
+    private String email;
     private Integer rewardPoints;
     private Integer tierPoints;
 }

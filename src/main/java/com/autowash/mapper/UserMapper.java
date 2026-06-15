@@ -13,8 +13,10 @@ public class UserMapper {
                 user.getId(),
                 user.getFullName(),
                 user.getPhone(),
-                user.getRole(),
-                user.getStatus()
+                user.getEmail(),
+                user.getUsername(),
+                user.getRole() != null ? user.getRole().name() : null,
+                user.getStatus() != null ? user.getStatus().name() : null
         );
     }
 }
