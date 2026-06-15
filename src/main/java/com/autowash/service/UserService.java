@@ -4,6 +4,8 @@ import com.autowash.dto.response.ProfileResponse;
 import com.autowash.dto.response.UserResponse;
 import com.autowash.entity.CustomerProfile;
 import com.autowash.entity.User;
+import com.autowash.mapper.ProfileMapper;
+import com.autowash.mapper.UserMapper;
 import com.autowash.repository.CustomerProfileRepository;
 import com.autowash.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,12 +16,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import com.autowash.dto.request.UpdateProfileRequest;
 import org.springframework.transaction.annotation.Transactional;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
     private final CustomerProfileRepository customerProfileRepository;
+    private final UserMapper userMapper;
+    private final ProfileMapper profileMapper;
 
     public User getCurrentUserEntity() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -39,7 +44,7 @@ public class UserService {
 
     public UserResponse getCurrentUser() {
         User user = getCurrentUserEntity();
-        return UserResponse.fromUser(user);
+        return userMapper.toResponse(user);
     }
 
     public ProfileResponse getCurrentUserProfile() {
@@ -51,7 +56,7 @@ public class UserService {
                         "Customer profile not found"
                 ));
 
-        return ProfileResponse.fromProfile(profile);
+        return profileMapper.toResponse(profile);
     }
 
     @Transactional
@@ -64,7 +69,7 @@ public class UserService {
 
         User savedUser = userRepository.save(user);
 
-        return UserResponse.fromUser(savedUser);
+        return userMapper.toResponse(savedUser);
     }
 
 }

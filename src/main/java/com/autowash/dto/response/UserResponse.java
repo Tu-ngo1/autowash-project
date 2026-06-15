@@ -1,6 +1,5 @@
 package com.autowash.dto.response;
 
-import com.autowash.entity.User;
 import com.autowash.enums.Role;
 import com.autowash.enums.UserStatus;
 import lombok.AllArgsConstructor;
@@ -15,14 +14,4 @@ public class UserResponse {
     private String phone;
     private Role role;
     private UserStatus status;
-
-    public static UserResponse fromUser(User user) {
-        return new UserResponse(
-                user.getId(),
-                user.getFullName(),
-                user.getPhone(),
-                user.getRole(),
-                user.getStatus()
-        );
-    }
 }
