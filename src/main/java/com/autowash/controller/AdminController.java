@@ -1,10 +1,9 @@
 package com.autowash.controller;
 
-import com.autowash.dto.response.BookingResponse;
-import com.autowash.dto.response.BookingStatusResponse;
-import com.autowash.dto.response.TopUsedVoucherResponse;
+import com.autowash.dto.response.*;
 import com.autowash.enums.BookingStatus;
 import com.autowash.service.AnalyticsService;
+import com.autowash.service.TierConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,6 +18,7 @@ import java.util.List;
 public class AdminController {
 
     private final AnalyticsService analyticsService;
+    private final TierConfigService tierConfigService;
 
     @GetMapping("/analytics/bookings-by-status")
     public List<BookingStatusResponse> getBookingsByStatusCount() {
@@ -30,8 +30,19 @@ public class AdminController {
         return analyticsService.getTopVoucher();
     }
 
+    @GetMapping("/vouchers")
+    public List<VoucherResponse> getAllVoucher() {
+        return analyticsService.getAllVoucher();
+    }
+
     @GetMapping("/bookings")
     public List<BookingResponse> getBookings(@RequestParam(required = false) BookingStatus status) {
         return analyticsService.getBookingListByStatus(status);
+    }
+
+    @GetMapping("/tiers")
+    public List<TierConfigResponse> getTier(){
+        return tierConfigService.getTierConfigResponseList();
+
     }
 }

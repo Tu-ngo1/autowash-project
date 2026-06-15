@@ -8,6 +8,8 @@ import com.autowash.entity.CustomerProfile;
 import com.autowash.entity.User;
 import com.autowash.enums.Role;
 import com.autowash.enums.UserStatus;
+import com.autowash.mapper.ProfileMapper;
+import com.autowash.mapper.UserMapper;
 import com.autowash.repository.BookingRepository;
 import com.autowash.repository.CarRepository;
 import com.autowash.repository.CustomerProfileRepository;
@@ -22,24 +24,18 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-
-
-
 import com.autowash.dto.response.AdminCustomerResponse;
-import com.autowash.repository.CarRepository;
-import com.autowash.repository.BookingRepository;
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
     private final CustomerProfileRepository customerProfileRepository;
+    private final UserMapper userMapper;
+    private final ProfileMapper profileMapper;
     private final PasswordEncoder passwordEncoder;
-
-
     private final CarRepository carRepository;
     private final BookingRepository bookingRepository;
-
 
     public User getCurrentUserEntity() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -62,7 +58,7 @@ public class UserService {
 
     public UserResponse getCurrentUser() {
         User user = getCurrentUserEntity();
-        return UserResponse.fromUser(user);
+        return userMapper.toResponse(user);
     }
 
     public ProfileResponse getCurrentUserProfile() {
@@ -74,7 +70,7 @@ public class UserService {
                         "Customer profile not found"
                 ));
 
-        return ProfileResponse.fromProfile(profile);
+        return profileMapper.toResponse(profile);
     }
 
     @Transactional
@@ -87,13 +83,13 @@ public class UserService {
 
         User savedUser = userRepository.save(user);
 
-        return UserResponse.fromUser(savedUser);
+        return userMapper.toResponse(savedUser);
     }
 
     public List<UserResponse> getAllUsers() {
         return userRepository.findAll()
                 .stream()
-                .map(UserResponse::fromUser)
+                .map(userMapper::toResponse)
                 .toList();
     }
 
@@ -157,7 +153,7 @@ public class UserService {
 
         User savedStaff = userRepository.save(staff);
 
-        return UserResponse.fromUser(savedStaff);
+        return userMapper.toResponse(savedStaff);
     }
 
     @Transactional
@@ -172,7 +168,7 @@ public class UserService {
 
         User savedUser = userRepository.save(user);
 
-        return UserResponse.fromUser(savedUser);
+        return userMapper.toResponse(savedUser);
     }
 
     @Transactional
@@ -187,7 +183,7 @@ public class UserService {
 
         User savedUser = userRepository.save(user);
 
-        return UserResponse.fromUser(savedUser);
+        return userMapper.toResponse(savedUser);
     }
 
     public List<AdminCustomerResponse> getAllCustomersForAdmin() {
@@ -199,7 +195,7 @@ public class UserService {
                     int carCount = carRepository.countByUserId(userId);
                     int bookingCount = bookingRepository.countByUserId(userId);
 
-                    return AdminCustomerResponse.fromProfile(
+                    return profileMapper.toAdminResponse(
                             profile,
                             carCount,
                             bookingCount

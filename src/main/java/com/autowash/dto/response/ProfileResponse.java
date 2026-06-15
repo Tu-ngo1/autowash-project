@@ -1,6 +1,5 @@
 package com.autowash.dto.response;
 
-import com.autowash.entity.CustomerProfile;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -14,15 +13,4 @@ public class ProfileResponse {
     private String email;
     private Integer rewardPoints;
     private Integer tierPoints;
-
-    public static ProfileResponse fromProfile(CustomerProfile profile) {
-        return new ProfileResponse(
-                profile.getUser().getId(),
-                profile.getUser().getFullName(),
-                profile.getUser().getPhone(),
-                profile.getUser().getEmail(),
-                profile.getRewardPoints(),
-                profile.getTierPoints()
-        );
-    }
 }
