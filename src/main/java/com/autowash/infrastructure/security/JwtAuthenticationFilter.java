@@ -37,14 +37,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
 
         try {
-            String phone = jwtService.extractPhone(token);
+            String email = jwtService.extractEmail(token);
             String role = jwtService.extractRole(token);
 
-            if (phone != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
-                                phone,
+                                email,
                                 null,
                                 List.of(new SimpleGrantedAuthority("ROLE_" + role))
                         );

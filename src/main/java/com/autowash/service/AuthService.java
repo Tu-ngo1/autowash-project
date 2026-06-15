@@ -33,10 +33,10 @@ public class AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
 
-        if (userRepository.existsByPhone(request.getPhone())) {
+        if (userRepository.existsByEmail(request.getEmail())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Phone number already exists"
+                    "Email already exists"
             );
         }
 
@@ -48,6 +48,7 @@ public class AuthService {
 
         User user = User.builder()
                 .fullName(request.getFullName())
+                .email(request.getEmail())
                 .phone(request.getPhone())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(role)
@@ -72,7 +73,7 @@ public class AuthService {
             customerProfileRepository.save(profile);
         }
 
-        String token = jwtService.generateToken(savedUser.getPhone(), savedUser.getRole().name());
+        String token = jwtService.generateToken(savedUser.getEmail(), savedUser.getRole().name());
 
         return new AuthResponse(
                 token,
@@ -83,10 +84,10 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
 
-        User user = userRepository.findByPhone(request.getPhone())
+        User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
-                        "Invalid phone or password"
+                        "Invalid email or password"
                 ));
 
         if (user.getStatus() != UserStatus.ACTIVE) {
@@ -99,11 +100,11 @@ public class AuthService {
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED,
-                    "Invalid phone or password"
+                    "Invalid email or password"
             );
         }
 
-        String token = jwtService.generateToken(user.getPhone(), user.getRole().name());
+        String token = jwtService.generateToken(user.getEmail(), user.getRole().name());
 
         return new AuthResponse(token, user.getRole().name(), getDashboardUrlByRole(user.getRole()));
     }
