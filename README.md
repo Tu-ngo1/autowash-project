@@ -1,6 +1,4 @@
 # AutowashProject
-<<<<<<< Updated upstream
-6/6/2026 push phần BE2 lên lần 1
 =======
 BE 2 - Service, Price, Booking, QR, Staff Flow
 Phụ trách phần vận hành rửa xe.
