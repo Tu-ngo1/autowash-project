@@ -59,4 +59,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             LocalDateTime to
     );
     Optional<Booking> findByQrContent(String qrContent);
+
+    int countByUserId(Long userId);
 }
