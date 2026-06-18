@@ -2,7 +2,9 @@ package com.autowash.service;
 
 import com.autowash.entity.OtpToken;
 import com.autowash.entity.User;
+import com.autowash.enums.OtpPurpose;
 import com.autowash.repository.OtpTokenRepository;
+import com.autowash.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,8 @@ import java.util.Random;
 public class OtpService {
 
     private final OtpTokenRepository otpTokenRepository;
+    private final UserRepository userRepository;
+    private final EmailService emailService;
 
     @Transactional
     public OtpToken createOtp(User user, String email) {
@@ -124,6 +128,121 @@ public class OtpService {
         otpTokenRepository.save(otpToken);
 
         return true;
+    }
+
+    @Transactional
+    public void sendRegistrationOtp(String email) {
+        String normalizedEmail = normalizeEmail(email);
+
+        if (userRepository.existsByEmail(normalizedEmail)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Email already exists"
+            );
+        }
+
+        String otpCode = generateOtpCode();
+
+        OtpToken otpToken = OtpToken.builder()
+                .email(normalizedEmail)
+                .otpCode(otpCode)
+                .resendCount(0)
+                .verified(false)
+                .createdAt(LocalDateTime.now())
+                .expiredAt(LocalDateTime.now().plusMinutes(5))
+                .purpose(OtpPurpose.REGISTER)
+                .build();
+
+        otpTokenRepository.save(otpToken);
+        emailService.sendRegistrationOtp(normalizedEmail, otpCode);
+    }
+
+    @Transactional
+    public void verifyRegistrationOtp(String email, String otpCode) {
+        OtpToken otpToken = getLatestRegistrationOtp(email);
+
+        assertOtpNotExpired(otpToken);
+        assertOtpNotAlreadyVerified(otpToken);
+        assertOtpCodeMatches(otpToken, otpCode);
+
+        otpToken.setVerified(true);
+        otpTokenRepository.save(otpToken);
+    }
+
+    @Transactional
+    public void validateRegistrationOtpForSignup(String email, String otpCode) {
+        OtpToken otpToken = getLatestRegistrationOtp(email);
+
+        if (!Boolean.TRUE.equals(otpToken.getVerified())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Please verify OTP before registering"
+            );
+        }
+
+        assertOtpNotExpired(otpToken);
+        assertOtpCodeMatches(otpToken, otpCode);
+    }
+
+    @Transactional
+    public void consumeRegistrationOtp(String email) {
+        otpTokenRepository
+                .findTopByEmailAndPurposeOrderByCreatedAtDesc(normalizeEmail(email), OtpPurpose.REGISTER)
+                .ifPresent(otpTokenRepository::delete);
+    }
+
+    private OtpToken getLatestRegistrationOtp(String email) {
+        return otpTokenRepository
+                .findTopByEmailAndPurposeOrderByCreatedAtDesc(normalizeEmail(email), OtpPurpose.REGISTER)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "OTP not found"
+                ));
+    }
+
+    private void assertOtpNotExpired(OtpToken otpToken) {
+        if (otpToken.getExpiredAt().isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "OTP has expired"
+            );
+        }
+    }
+
+    private void assertOtpNotAlreadyVerified(OtpToken otpToken) {
+        if (Boolean.TRUE.equals(otpToken.getVerified())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "OTP has already been verified"
+            );
+        }
+    }
+
+    private void assertOtpCodeMatches(OtpToken otpToken, String otpCode) {
+        if (otpCode == null || otpCode.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "OTP code is required"
+            );
+        }
+
+        if (!otpToken.getOtpCode().equals(otpCode.trim())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid OTP code"
+            );
+        }
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null || email.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Email is required"
+            );
+        }
+
+        return email.trim().toLowerCase();
     }
 
     private String generateOtpCode() {

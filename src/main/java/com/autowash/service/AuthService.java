@@ -29,29 +29,67 @@ public class AuthService {
     private final TierConfigRepository tierConfigRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final OtpService otpService;
+
+    @Transactional
+    public void sendRegistrationOtp(String email) {
+        otpService.sendRegistrationOtp(email);
+    }
+
+    @Transactional
+    public void verifyRegistrationOtp(String email, String otp) {
+        otpService.verifyRegistrationOtp(email, otp);
+    }
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        String email = normalizeRequired(request.getEmail(), "Email is required").toLowerCase();
 
-        if (userRepository.existsByEmail(request.getEmail())) {
+        otpService.validateRegistrationOtpForSignup(email, request.getOtp());
+
+        if (userRepository.existsByEmail(email)) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Email already exists"
             );
         }
 
-        Role role = request.getRole();
+        String fullName = normalizeRequired(request.getFullName(), "Full name is required");
+        String username = normalizeRequired(request.getUsername(), "Username is required");
+        String phone = normalizeRequired(request.getPhone(), "Phone is required");
+        String password = normalizeRequired(request.getPassword(), "Password is required");
 
-        if (role == null) {
-            role = Role.CUSTOMER;
+        if (password.length() < 6) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Password must be at least 6 characters"
+            );
         }
 
+        if (userRepository.existsByUsername(username)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Username already exists"
+            );
+        }
+
+        if (userRepository.existsByPhone(phone)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Phone already exists"
+            );
+        }
+
+        Role role = request.getRole() != null ? request.getRole() : Role.CUSTOMER;
+
         User user = User.builder()
-                .fullName(request.getFullName())
-                .email(request.getEmail())
-                .phone(request.getPhone())
-                .password(passwordEncoder.encode(request.getPassword()))
+                .fullName(fullName)
+                .username(username)
+                .email(email)
+                .phone(phone)
+                .password(passwordEncoder.encode(password))
                 .role(role)
+                .status(UserStatus.ACTIVE)
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -72,6 +110,8 @@ public class AuthService {
 
             customerProfileRepository.save(profile);
         }
+
+        otpService.consumeRegistrationOtp(email);
 
         String token = jwtService.generateToken(savedUser.getEmail(), savedUser.getRole().name());
 
@@ -109,6 +149,14 @@ public class AuthService {
         return new AuthResponse(token, user.getRole().name(), getDashboardUrlByRole(user.getRole()));
     }
 
+    private String normalizeRequired(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+        }
+
+        return value.trim();
+    }
+
     private String getDashboardUrlByRole(Role role) {
         if (role == Role.ADMIN) {
             return "/admin/dashboard";
@@ -120,6 +168,4 @@ public class AuthService {
 
         return "/customer/dashboard";
     }
-
-
 }
