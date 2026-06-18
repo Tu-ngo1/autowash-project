@@ -41,7 +41,7 @@ public class User {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @Column(name = "Full_name", nullable = false)
+    @Column(name = "Name", nullable = false)
     private String fullName;
 
     @Column(unique = true)
@@ -53,7 +53,7 @@ public class User {
     @Column(unique = true)
     private String username;
 
-    @Column(name = "Password_hash", nullable = false)
+    @Column(nullable = false)
     private String password;
 
     @Enumerated(EnumType.STRING)
