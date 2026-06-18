@@ -1,7 +1,10 @@
 package com.autowash.entity;
 
+import com.autowash.enums.OtpPurpose;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -55,4 +58,8 @@ public class OtpToken {
 
     @Column(name = "Expired_at", nullable = false)
     private LocalDateTime expiredAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "Purpose")
+    private OtpPurpose purpose;
 }
