@@ -1,0 +1,10 @@
+name: url cho AutoWash
+values:
+  - key: UrlAdmin
+    value: ''
+  - key: UrlCustomer
+    value: ''
+  - key: UrlStaff
+    value: ''
+  - key: UrlAuth
+    value: ''

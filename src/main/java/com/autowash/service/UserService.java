@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import com.autowash.dto.response.AdminCustomerResponse;
+import com.autowash.dto.response.AdminUserResponse;
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -86,10 +86,15 @@ public class UserService {
         return userMapper.toResponse(savedUser);
     }
 
-    public List<UserResponse> getAllUsers() {
-        return userRepository.findAll()
+    public List<AdminUserResponse> getAllUsers() {
+        return userRepository.findByRoleNot(Role.ADMIN)
                 .stream()
-                .map(userMapper::toResponse)
+                .map(user -> {
+                    Long userId = user.getId();
+                    int carCount = carRepository.countByUserId(userId);
+                    int bookingCount = bookingRepository.countByUserId(userId);
+                    return userMapper.toAdminUserResponse(user, carCount, bookingCount);
+                })
                 .toList();
     }
 
@@ -186,23 +191,7 @@ public class UserService {
         return userMapper.toResponse(savedUser);
     }
 
-    public List<AdminCustomerResponse> getAllCustomersForAdmin() {
-        return customerProfileRepository.findAll()
-                .stream()
-                .map(profile -> {
-                    Long userId = profile.getUser().getId();
 
-                    int carCount = carRepository.countByUserId(userId);
-                    int bookingCount = bookingRepository.countByUserId(userId);
-
-                    return profileMapper.toAdminResponse(
-                            profile,
-                            carCount,
-                            bookingCount
-                    );
-                })
-                .toList();
-    }
 
 
 }

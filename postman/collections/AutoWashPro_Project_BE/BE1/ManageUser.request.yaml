@@ -1,0 +1,9 @@
+$kind: http-request
+name: ManageUser
+url: http://localhost:8080/api/admin/users
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJhZG1pbkBhdXRvd2FzaC5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODE1Njk0OTUsImV4cCI6MTc4MTY1NTg5NX0.Jgva-XOZuZ_Nc73ho8KzgKHgdc0cMpi-LBj8JIlQWx2CqYAhMHrE6GnFxgkf6CB9
+order: 1781569271371

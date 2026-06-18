@@ -30,6 +30,13 @@ public class AdminController {
         return analyticsService.getTopVoucher();
     }
 
+    @GetMapping("/analytics/revenue")
+    public List<RevenueResponse> getRevenueAnalytics(
+            @RequestParam(defaultValue = "DAY") AnalyticsPeriod period
+    ) {
+        return analyticsService.getRevenueAnalytics(period);
+    }
+
     @GetMapping("/vouchers")
     public List<VoucherResponse> getAllVoucher() {
         return analyticsService.getAllVoucher();
