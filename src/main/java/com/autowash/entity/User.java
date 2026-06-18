@@ -21,7 +21,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.ToString;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -42,22 +41,19 @@ public class User {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @Column(name = "User_code", unique = true)
-    private String userCode;
+    @Column(name = "Full_name", nullable = false)
+    private String fullName;
 
     @Column(unique = true)
-    private String username;
-
-    @Column(name = "Name", nullable = false)
-    private String fullName;
+    private String email;
 
     @Column(unique = true)
     private String phone;
 
-    @Column(unique = true, nullable = false)
-    private String email;
+    @Column(unique = true)
+    private String username;
 
-    @Column(nullable = false)
+    @Column(name = "Password_hash", nullable = false)
     private String password;
 
     @Enumerated(EnumType.STRING)
@@ -75,14 +71,16 @@ public class User {
     @Column(name = "Updated_at")
     private LocalDateTime updatedAt;
 
-    @OneToOne(mappedBy = "user")
-    @ToString.Exclude
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private CustomerProfile customerProfile;
 
     @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    @ToString.Exclude
     private List<Car> cars = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "user")
+    private List<Booking> bookings = new ArrayList<>();
 
     @PrePersist
     void onCreate() {

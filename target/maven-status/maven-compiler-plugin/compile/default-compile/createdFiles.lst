@@ -1,0 +1,4 @@
+com\autowash\infrastructure\security\CustomUserDetailsService.class
+com\autowash\AutowashApplication.class
+com\autowash\controller\AdminController.class
+com\autowash\infrastructure\config\PasswordEncoderConfig.class

@@ -1,6 +1,6 @@
 package com.autowash.entity;
 
-import com.autowash.enums.VehicleSize;
+import com.autowash.enums.CarStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -47,6 +47,11 @@ public class Car {
     @ManyToOne
     @JoinColumn(name = "vehicle_model_id", nullable = false)
     private VehicleModel vehicleModel;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "Status", nullable = false)
+    private CarStatus status = CarStatus.ACTIVE;
 
     @Column(name = "Created_at")
     private LocalDateTime createdAt;

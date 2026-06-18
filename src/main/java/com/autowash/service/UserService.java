@@ -6,6 +6,7 @@ import com.autowash.dto.response.ProfileResponse;
 import com.autowash.dto.response.UserResponse;
 import com.autowash.entity.CustomerProfile;
 import com.autowash.entity.User;
+import com.autowash.enums.CarStatus;
 import com.autowash.enums.Role;
 import com.autowash.enums.UserStatus;
 import com.autowash.mapper.ProfileMapper;
@@ -192,6 +193,21 @@ public class UserService {
     }
 
 
+    public List<AdminUserResponse> getAllCustomersForAdmin() {
+        return customerProfileRepository.findAll()
+                .stream()
+                .map(profile -> {
+                    Long userId = profile.getUser().getId();
 
+                    int carCount = carRepository.countByUserIdAndStatus(userId, CarStatus.ACTIVE);
+                    int bookingCount = bookingRepository.countByUserId(userId);
 
+                    return userMapper.toAdminUserResponse(
+                            profile.getUser(),
+                            carCount,
+                            bookingCount
+                    );
+                })
+                .toList();
+    }
 }

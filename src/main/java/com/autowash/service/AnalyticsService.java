@@ -19,7 +19,6 @@ import com.autowash.repository.PromotionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.lang.classfile.instruction.SwitchCase;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
@@ -34,6 +33,7 @@ import java.util.stream.Collectors;
 public class AnalyticsService {
     private final BookingRepository bookingRepo;
     private final PromotionRepository promotionRepo;
+    private final PaymentRepository paymentRepository;
     private final BookingMapper bookingMapper;
     private final VoucherMapper voucherMapper;
 
@@ -57,8 +57,7 @@ public class AnalyticsService {
     }
 
     public List<RevenueResponse> getRevenueAnalytics(AnalyticsPeriod analyticsPeriod) {
-        // TODO: Implement repository and service logic
-        List<Payment> paidPayments = PaymentRepository.findByPaymentStatus(PaymentStatus.PAID);
+        List<Payment> paidPayments = paymentRepository.findByPaymentStatus(PaymentStatus.PAID);
         Function<LocalDateTime, String> labelExtractor = paidAt -> {
             switch (analyticsPeriod){
                 case MONTH:
@@ -71,7 +70,15 @@ public class AnalyticsService {
                     return paidAt.format(DateTimeFormatter.ofPattern("dd/MM"));
             }
         };
-        return paidPayments.stream().filter(p -> p.getPaidAt() != null).collect(Collectors.groupingBy(labelExtractor.apply())
-        return List.of();
+
+        return paidPayments.stream()
+                .filter(p -> p.getPaidAt() != null)
+                .collect(Collectors.groupingBy(
+                        p -> labelExtractor.apply(p.getPaidAt()),
+                        Collectors.summingInt(Payment::getFinalPrice)
+                ))
+                .entrySet().stream()
+                .map(entry -> new RevenueResponse(entry.getKey(), java.math.BigDecimal.valueOf(entry.getValue())))
+                .toList();
     }
 }
