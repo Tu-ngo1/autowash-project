@@ -23,4 +23,3 @@ public interface TierConfigRepository extends JpaRepository<TierConfig, TierLeve
     """)
     List<TierConfigResponse> findTiersWithCustomerCount();
 }
-

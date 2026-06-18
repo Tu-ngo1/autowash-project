@@ -6,6 +6,7 @@ import com.autowash.dto.response.CarResponse;
 import com.autowash.entity.Car;
 import com.autowash.entity.User;
 import com.autowash.entity.VehicleModel;
+import com.autowash.enums.CarStatus;
 import com.autowash.repository.CarRepository;
 import com.autowash.repository.VehicleModelRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,7 @@ public class CarService {
     public List<CarResponse> getMyCars() {
         User currentUser = userService.getCurrentUserEntity();
 
-        return carRepository.findByUserId(currentUser.getId())
+        return carRepository.findByUserIdAndStatus(currentUser.getId(), CarStatus.ACTIVE)
                 .stream()
                 .map(CarResponse::fromCar)
                 .toList();
@@ -51,7 +52,7 @@ public class CarService {
             );
         }
 
-        if (carRepository.existsByLicensePlate(request.getLicensePlate())) {
+        if (carRepository.existsByLicensePlateAndStatus(request.getLicensePlate(), CarStatus.ACTIVE)) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "License plate already exists"
@@ -69,6 +70,7 @@ public class CarService {
                 .user(currentUser)
                 .licensePlate(request.getLicensePlate())
                 .vehicleModel(vehicleModel)
+                .status(CarStatus.ACTIVE)
                 .build();
 
         Car savedCar = carRepository.save(car);
@@ -80,7 +82,7 @@ public class CarService {
     public CarResponse updateCar(Long carId, UpdateCarRequest request) {
         User currentUser = userService.getCurrentUserEntity();
 
-        Car car = carRepository.findByIdAndUserId(carId, currentUser.getId())
+        Car car = carRepository.findByIdAndUserIdAndStatus(carId, currentUser.getId(), CarStatus.ACTIVE)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Car not found"
@@ -88,7 +90,7 @@ public class CarService {
 
         if (request.getLicensePlate() != null && !request.getLicensePlate().isBlank()) {
             if (!request.getLicensePlate().equals(car.getLicensePlate())
-                    && carRepository.existsByLicensePlate(request.getLicensePlate())) {
+                    && carRepository.existsByLicensePlateAndStatus(request.getLicensePlate(), CarStatus.ACTIVE)) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
                         "License plate already exists"
@@ -118,12 +120,13 @@ public class CarService {
     public void deleteCar(Long carId) {
         User currentUser = userService.getCurrentUserEntity();
 
-        Car car = carRepository.findByIdAndUserId(carId, currentUser.getId())
+        Car car = carRepository.findByIdAndUserIdAndStatus(carId, currentUser.getId(), CarStatus.ACTIVE)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Car not found"
                 ));
 
-        carRepository.delete(car);
+        car.setStatus(CarStatus.INACTIVE);
+        carRepository.save(car);
     }
 }

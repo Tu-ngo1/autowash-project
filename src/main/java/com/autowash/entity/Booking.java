@@ -57,23 +57,8 @@ public class Booking {
     @Column(name = "Scheduled_start_time", nullable = false)
     private LocalDateTime scheduledStartTime;
 
-    @Column(name = "Created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "Updated_at")
-    private LocalDateTime updatedAt;
-
-    @Column(name = "Arrived_at")
-    private LocalDateTime arrivedAt;
-
-    @Column(name = "Wash_started_at")
-    private LocalDateTime washStartedAt;
-
     @Column(name = "Expected_end_time")
     private LocalDateTime expectedEndTime;
-
-    @Column(name = "Completed_at")
-    private LocalDateTime completedAt;
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
@@ -90,6 +75,25 @@ public class Booking {
     @Column(name = "Customer_note", columnDefinition = "nvarchar(max)")
     private String customerNote;
 
+    @Column(name = "Total_price", nullable = false)
+    private Integer totalPrice;
+
+    @Column(name = "Qr_content", nullable = false, unique = true)
+    private String qrContent;
+
+    @Builder.Default
+    @Column(name = "Qr_used", nullable = false)
+    private Boolean qrUsed = false;
+
+    @Column(name = "Arrived_at")
+    private LocalDateTime arrivedAt;
+
+    @Column(name = "Wash_started_at")
+    private LocalDateTime washStartedAt;
+
+    @Column(name = "Completed_at")
+    private LocalDateTime completedAt;
+
     @Builder.Default
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
@@ -97,6 +101,12 @@ public class Booking {
 
     @OneToOne(mappedBy = "booking")
     private Payment payment;
+
+    @Column(name = "Created_at")
+    private LocalDateTime createdAt;
+
+    @Column(name = "Updated_at")
+    private LocalDateTime updatedAt;
 
     @PrePersist
     void onCreate() {

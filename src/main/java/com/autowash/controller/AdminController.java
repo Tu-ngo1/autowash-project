@@ -1,6 +1,10 @@
 package com.autowash.controller;
 
-import com.autowash.dto.response.*;
+import com.autowash.dto.response.BookingResponse;
+import com.autowash.dto.response.BookingStatusResponse;
+import com.autowash.dto.response.TierConfigResponse;
+import com.autowash.dto.response.TopUsedVoucherResponse;
+import com.autowash.dto.response.VoucherResponse;
 import com.autowash.enums.BookingStatus;
 import com.autowash.service.AnalyticsService;
 import com.autowash.service.TierConfigService;
@@ -41,8 +45,7 @@ public class AdminController {
     }
 
     @GetMapping("/tiers")
-    public List<TierConfigResponse> getTier(){
+    public List<TierConfigResponse> getTier() {
         return tierConfigService.getTierConfigResponseList();
-
     }
 }

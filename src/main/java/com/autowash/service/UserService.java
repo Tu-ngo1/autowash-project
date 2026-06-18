@@ -2,10 +2,12 @@ package com.autowash.service;
 
 import com.autowash.dto.request.CreateStaffRequest;
 import com.autowash.dto.request.UpdateProfileRequest;
+import com.autowash.dto.response.AdminCustomerResponse;
 import com.autowash.dto.response.ProfileResponse;
 import com.autowash.dto.response.UserResponse;
 import com.autowash.entity.CustomerProfile;
 import com.autowash.entity.User;
+import com.autowash.enums.CarStatus;
 import com.autowash.enums.Role;
 import com.autowash.enums.UserStatus;
 import com.autowash.mapper.ProfileMapper;
@@ -24,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import com.autowash.dto.response.AdminCustomerResponse;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -192,7 +194,7 @@ public class UserService {
                 .map(profile -> {
                     Long userId = profile.getUser().getId();
 
-                    int carCount = carRepository.countByUserId(userId);
+                    int carCount = carRepository.countByUserIdAndStatus(userId, CarStatus.ACTIVE);
                     int bookingCount = bookingRepository.countByUserId(userId);
 
                     return profileMapper.toAdminResponse(
@@ -203,6 +205,4 @@ public class UserService {
                 })
                 .toList();
     }
-
-
 }
