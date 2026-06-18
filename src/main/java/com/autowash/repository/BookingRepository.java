@@ -59,4 +59,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     Optional<Booking> findByQrContent(String qrContent);
 
     int countByUserId(Long userId);
+
+    long countByStatus(BookingStatus status);
+
+    long countByStatusNot(BookingStatus status);
 }

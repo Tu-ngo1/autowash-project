@@ -5,17 +5,22 @@ import com.autowash.dto.response.BookingStatusResponse;
 import com.autowash.dto.response.RevenueResponse;
 import com.autowash.dto.response.TopUsedVoucherResponse;
 import com.autowash.dto.response.VoucherResponse;
+import com.autowash.dto.response.DashboardAnalyticsResponse;
+import com.autowash.dto.response.ServiceRatioResponse;
 import com.autowash.entity.Booking;
 import com.autowash.entity.Payment;
 import com.autowash.entity.Promotion;
 import com.autowash.enums.AnalyticsPeriod;
 import com.autowash.enums.BookingStatus;
 import com.autowash.enums.PaymentStatus;
+import com.autowash.enums.Role;
 import com.autowash.mapper.BookingMapper;
 import com.autowash.mapper.VoucherMapper;
 import com.autowash.repository.BookingRepository;
 import com.autowash.repository.PaymentRepository;
 import com.autowash.repository.PromotionRepository;
+import com.autowash.repository.UserRepository;
+import com.autowash.repository.BookingDetailRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -34,8 +39,37 @@ public class AnalyticsService {
     private final BookingRepository bookingRepo;
     private final PromotionRepository promotionRepo;
     private final PaymentRepository paymentRepository;
+    private final UserRepository userRepository;
+    private final BookingDetailRepository bookingDetailRepository;
     private final BookingMapper bookingMapper;
     private final VoucherMapper voucherMapper;
+
+    public DashboardAnalyticsResponse getDashboardAnalytics() {
+        List<Payment> paidPayments = paymentRepository.findByPaymentStatus(PaymentStatus.PAID);
+        long totalRevenueValue = paidPayments.stream().mapToLong(Payment::getFinalPrice).sum();
+
+        long washCountValue = bookingRepo.countByStatusNot(BookingStatus.CANCELLED);
+        long newCustomersValue = userRepository.countByRole(Role.CUSTOMER);
+        long pendingBookingsValue = bookingRepo.countByStatus(BookingStatus.PENDING);
+
+        List<ServiceRatioResponse> serviceRatios = bookingDetailRepository.getServiceRatios();
+
+        return DashboardAnalyticsResponse.builder()
+                .totalRevenue(totalRevenueValue)
+                .revenue(totalRevenueValue)
+                .totalSales(totalRevenueValue)
+                .washCount(washCountValue)
+                .totalWashes(washCountValue)
+                .bookingCount(washCountValue)
+                .newCustomers(newCustomersValue)
+                .customerCount(newCustomersValue)
+                .customers(newCustomersValue)
+                .pendingBookings(pendingBookingsValue)
+                .pending(pendingBookingsValue)
+                .waitingBookings(pendingBookingsValue)
+                .serviceRatios(serviceRatios)
+                .build();
+    }
 
     public List<TopUsedVoucherResponse> getTopVoucher() {
         return promotionRepo.findTopVoucher().stream()

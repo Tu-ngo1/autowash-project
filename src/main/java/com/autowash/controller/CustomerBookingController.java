@@ -27,7 +27,7 @@ public class CustomerBookingController {
         return bookingService.createBooking(currentUser.getId(), request);
     }
 
-    @GetMapping
+    @GetMapping("/my")
     public List<BookingResponse> getMyBookings() {
         User currentUser = userService.getCurrentUserEntity();
         return bookingService.getMyBookings(currentUser.getId());

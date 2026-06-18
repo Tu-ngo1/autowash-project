@@ -6,6 +6,7 @@ import com.autowash.dto.response.RevenueResponse;
 import com.autowash.dto.response.TierConfigResponse;
 import com.autowash.dto.response.TopUsedVoucherResponse;
 import com.autowash.dto.response.VoucherResponse;
+import com.autowash.dto.response.DashboardAnalyticsResponse;
 import com.autowash.enums.AnalyticsPeriod;
 import com.autowash.enums.BookingStatus;
 import com.autowash.service.AnalyticsService;
@@ -25,6 +26,11 @@ public class AdminController {
 
     private final AnalyticsService analyticsService;
     private final TierConfigService tierConfigService;
+
+    @GetMapping("/analytics/dashboard")
+    public DashboardAnalyticsResponse getDashboardAnalytics() {
+        return analyticsService.getDashboardAnalytics();
+    }
 
     @GetMapping("/analytics/bookings-by-status")
     public List<BookingStatusResponse> getBookingsByStatusCount() {
