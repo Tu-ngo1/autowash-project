@@ -12,6 +12,7 @@ import com.autowash.entity.CustomerProfile;
 import com.autowash.entity.ServicePrice;
 import com.autowash.entity.User;
 import com.autowash.enums.BookingStatus;
+import com.autowash.enums.CarStatus;
 import com.autowash.repository.BookingDetailRepository;
 import com.autowash.repository.BookingRepository;
 import com.autowash.repository.CarRepository;
@@ -57,6 +58,13 @@ public class BookingService {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Bạn không có quyền đặt lịch cho phương tiện này"
+            );
+        }
+
+        if (car.getStatus() != CarStatus.ACTIVE) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Phương tiện đã bị xóa hoặc không hoạt động"
             );
         }
 
