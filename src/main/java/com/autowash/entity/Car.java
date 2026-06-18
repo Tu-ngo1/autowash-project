@@ -44,9 +44,9 @@ public class Car {
     @Column(name = "License_plate", nullable = false)
     private String licensePlate;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "Vehicle_size", nullable = false)
-    private VehicleSize vehicleSize;
+    @ManyToOne
+    @JoinColumn(name = "vehicle_model_id", nullable = false)
+    private VehicleModel vehicleModel;
 
     @Column(name = "Created_at")
     private LocalDateTime createdAt;

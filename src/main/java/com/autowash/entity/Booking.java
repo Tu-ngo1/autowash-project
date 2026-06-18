@@ -12,6 +12,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -93,6 +94,9 @@ public class Booking {
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     private List<BookingDetail> bookingDetails = new ArrayList<>();
+
+    @OneToOne(mappedBy = "booking")
+    private Payment payment;
 
     @PrePersist
     void onCreate() {

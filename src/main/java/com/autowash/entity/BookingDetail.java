@@ -35,10 +35,6 @@ public class BookingDetail {
     private Booking booking;
 
     @ManyToOne
-    @JoinColumn(name = "service_id", nullable = false)
-    private Service service;
-
-    @ManyToOne
     @JoinColumn(name = "service_price_id", nullable = false)
     private ServicePrice servicePrice;
 

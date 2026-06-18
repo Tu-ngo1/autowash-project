@@ -47,6 +47,10 @@ public class Service {
     @Column(name = "Is_active", nullable = false)
     private Boolean active = true;
 
+    @Builder.Default
+    @Column(name = "Is_main_service", nullable = false, columnDefinition = "bit default 0")
+    private Boolean isMainService = false;
+
     @Column(name = "Created_at")
     private LocalDateTime createdAt;
 
