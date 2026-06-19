@@ -1,8 +1,10 @@
 package com.autowash.infrastructure.security;
 
-import com.autowash.entity.User;
-import com.autowash.enums.UserStatus;
-import com.autowash.repository.UserRepository;
+
+
+import com.autowash.features.user.entity.User;
+import com.autowash.features.user.enums.UserStatus;
+import com.autowash.features.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

@@ -1,5 +1,10 @@
 package com.autowash.infrastructure.security;
 
+import com.autowash.features.user.entity.User;
+
+
+import com.autowash.features.user.enums.Role;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;

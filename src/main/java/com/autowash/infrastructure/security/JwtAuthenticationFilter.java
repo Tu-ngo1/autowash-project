@@ -1,5 +1,9 @@
 package com.autowash.infrastructure.security;
 
+import com.autowash.features.user.entity.User;
+
+import com.autowash.features.user.enums.Role;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
