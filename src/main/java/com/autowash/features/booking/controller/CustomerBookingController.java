@@ -3,9 +3,9 @@ package com.autowash.features.booking.controller;
 import com.autowash.features.washservice.entity.Service;
 import com.autowash.features.booking.entity.Booking;
 
-import com.autowash.features.booking.dto.CreateBookingRequest;
-import com.autowash.features.booking.dto.BookingResponse;
-import com.autowash.features.booking.dto.QrCodeResponse;
+import com.autowash.features.booking.dto.request.CreateBookingRequest;
+import com.autowash.features.booking.dto.response.BookingResponse;
+import com.autowash.features.booking.dto.response.QrCodeResponse;
 import com.autowash.features.user.entity.User;
 import com.autowash.features.booking.service.BookingService;
 import com.autowash.features.user.service.UserService;

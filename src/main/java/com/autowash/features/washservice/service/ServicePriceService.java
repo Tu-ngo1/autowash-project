@@ -6,9 +6,9 @@ import com.autowash.features.car.entity.Car;
 import com.autowash.features.car.enums.VehicleSize;
 import com.autowash.features.booking.entity.Booking;
 
-import com.autowash.features.washservice.dto.CreateServicePriceRequest;
-import com.autowash.features.washservice.dto.UpdateServicePriceRequest;
-import com.autowash.features.washservice.dto.ServicePriceResponse;
+import com.autowash.features.washservice.dto.request.CreateServicePriceRequest;
+import com.autowash.features.washservice.dto.request.UpdateServicePriceRequest;
+import com.autowash.features.washservice.dto.response.ServicePriceResponse;
 
 import com.autowash.features.washservice.entity.ServicePrice;
 import com.autowash.features.washservice.repository.ServicePriceRepository;

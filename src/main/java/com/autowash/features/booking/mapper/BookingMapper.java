@@ -3,8 +3,8 @@ package com.autowash.features.booking.mapper;
 import com.autowash.features.booking.enums.PaymentStatus;
 import com.autowash.features.booking.enums.PaymentMethod;
 
-import com.autowash.features.booking.dto.BookingDetailResponse;
-import com.autowash.features.booking.dto.BookingResponse;
+import com.autowash.features.booking.dto.response.BookingDetailResponse;
+import com.autowash.features.booking.dto.response.BookingResponse;
 import com.autowash.features.booking.entity.Booking;
 import com.autowash.features.booking.entity.BookingDetail;
 import org.springframework.stereotype.Component;

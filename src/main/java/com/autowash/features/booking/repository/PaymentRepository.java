@@ -5,7 +5,7 @@ import com.autowash.features.booking.entity.Booking;
 import com.autowash.features.promotion.entity.Promotion;
 import com.autowash.features.promotion.entity.CustomerVoucher;
 
-import com.autowash.features.promotion.dto.TopUsedVoucherResponse;
+import com.autowash.features.promotion.dto.response.TopUsedVoucherResponse;
 import com.autowash.features.booking.entity.Payment;
 import com.autowash.features.booking.enums.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,7 +19,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByPaymentStatus(PaymentStatus paymentStatus);
 
     @Query("""
-        SELECT new com.autowash.dto.response.TopUsedVoucherResponse(
+        SELECT new com.autowash.features.promotion.dto.response.TopUsedVoucherResponse(
             promo.id,
             promo.voucherCode,
             promo.campaignName,
@@ -31,7 +31,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
         FROM Payment pay
         JOIN pay.appliedVoucher customerVoucher
         JOIN customerVoucher.promotion promo
-        WHERE pay.paymentStatus = com.autowash.enums.PaymentStatus.PAID
+        WHERE pay.paymentStatus = com.autowash.features.booking.enums.PaymentStatus.PAID
         GROUP BY
             promo.id,
             promo.voucherCode,

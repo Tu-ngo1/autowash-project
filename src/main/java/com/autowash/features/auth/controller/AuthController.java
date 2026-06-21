@@ -2,12 +2,12 @@ package com.autowash.features.auth.controller;
 
 import com.autowash.features.washservice.entity.Service;
 
-import com.autowash.features.auth.dto.LoginRequest;
-import com.autowash.features.auth.dto.RegisterRequest;
-import com.autowash.features.auth.dto.SendRegistrationOtpRequest;
-import com.autowash.features.auth.dto.VerifyRegistrationOtpRequest;
-import com.autowash.features.auth.dto.AuthResponse;
-import com.autowash.features.auth.dto.MessageResponse;
+import com.autowash.features.auth.dto.request.LoginRequest;
+import com.autowash.features.auth.dto.request.RegisterRequest;
+import com.autowash.features.auth.dto.request.SendRegistrationOtpRequest;
+import com.autowash.features.auth.dto.request.VerifyRegistrationOtpRequest;
+import com.autowash.features.auth.dto.response.AuthResponse;
+import com.autowash.features.auth.dto.response.MessageResponse;
 import com.autowash.features.auth.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;

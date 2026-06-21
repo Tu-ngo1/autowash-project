@@ -2,9 +2,9 @@ package com.autowash.features.auth.service;
 
 
 
-import com.autowash.features.auth.dto.LoginRequest;
-import com.autowash.features.auth.dto.RegisterRequest;
-import com.autowash.features.auth.dto.AuthResponse;
+import com.autowash.features.auth.dto.request.LoginRequest;
+import com.autowash.features.auth.dto.request.RegisterRequest;
+import com.autowash.features.auth.dto.response.AuthResponse;
 import com.autowash.features.user.entity.CustomerProfile;
 import com.autowash.features.user.entity.TierConfig;
 import com.autowash.features.user.entity.User;
@@ -126,23 +126,40 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
 
-        User user = userRepository.findByEmail(request.getEmail())
+        if (request.getUsernameOrPhone() == null || request.getUsernameOrPhone().isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Username or phone is required"
+            );
+        }
+
+        if (request.getPassword() == null || request.getPassword().isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Password is required"
+            );
+        }
+
+        User user = userRepository.findByUsernameOrPhone(
+                        request.getUsernameOrPhone(),
+                        request.getUsernameOrPhone()
+                )
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
-                        "Invalid email or password"
+                        "Invalid username/phone or password"
                 ));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Invalid username/phone or password"
+            );
+        }
 
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Account is locked or disabled"
-            );
-        }
-
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "Invalid email or password"
             );
         }
 

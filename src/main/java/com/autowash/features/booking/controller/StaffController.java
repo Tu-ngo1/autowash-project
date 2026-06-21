@@ -3,8 +3,8 @@ package com.autowash.features.booking.controller;
 import com.autowash.features.washservice.entity.Service;
 import com.autowash.features.booking.entity.Booking;
 
-import com.autowash.features.booking.dto.UpdateBookingStatusRequest;
-import com.autowash.features.booking.dto.BookingResponse;
+import com.autowash.features.booking.dto.request.UpdateBookingStatusRequest;
+import com.autowash.features.booking.dto.response.BookingResponse;
 import com.autowash.features.booking.service.BookingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;

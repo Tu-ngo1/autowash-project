@@ -3,14 +3,14 @@ package com.autowash.features.user.controller;
 import com.autowash.features.washservice.entity.Service;
 import com.autowash.features.user.entity.User;
 
-import com.autowash.features.user.dto.CreateStaffRequest;
-import com.autowash.features.user.dto.UserResponse;
+import com.autowash.features.user.dto.request.CreateStaffRequest;
+import com.autowash.features.user.dto.response.UserResponse;
 import com.autowash.features.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import com.autowash.features.user.dto.AdminUserResponse;
+import com.autowash.features.user.dto.response.AdminUserResponse;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor

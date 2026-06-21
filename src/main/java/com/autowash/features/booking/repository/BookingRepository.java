@@ -7,7 +7,7 @@ import com.autowash.features.washservice.entity.Service;
 import com.autowash.features.washservice.entity.ServicePrice;
 import com.autowash.features.user.entity.User;
 
-import com.autowash.features.analytics.dto.BookingStatusResponse;
+import com.autowash.features.analytics.dto.response.BookingStatusResponse;
 import com.autowash.features.booking.entity.Booking;
 import com.autowash.features.booking.enums.BookingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -22,7 +22,7 @@ import java.util.Optional;
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Query("""
-        SELECT new com.autowash.dto.response.BookingStatusResponse(
+        SELECT new com.autowash.features.analytics.dto.response.BookingStatusResponse(
             b.status,
             COUNT(b)
         )

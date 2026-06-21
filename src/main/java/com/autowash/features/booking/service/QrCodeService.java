@@ -2,7 +2,7 @@ package com.autowash.features.booking.service;
 
 
 
-import com.autowash.features.booking.dto.QrCodeResponse;
+import com.autowash.features.booking.dto.response.QrCodeResponse;
 import com.autowash.features.booking.entity.Booking;
 import com.autowash.features.booking.enums.BookingStatus;
 import com.autowash.features.booking.repository.BookingRepository;

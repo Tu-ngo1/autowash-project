@@ -2,7 +2,7 @@ package com.autowash.features.user.mapper;
 
 import com.autowash.features.user.entity.User;
 
-import com.autowash.features.user.dto.ProfileResponse;
+import com.autowash.features.user.dto.response.ProfileResponse;
 import com.autowash.features.user.entity.CustomerProfile;
 import org.springframework.stereotype.Component;
 

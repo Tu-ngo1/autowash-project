@@ -4,10 +4,10 @@ import com.autowash.features.car.entity.Car;
 
 import com.autowash.features.booking.entity.Booking;
 
-import com.autowash.features.user.dto.CreateStaffRequest;
-import com.autowash.features.user.dto.UpdateProfileRequest;
-import com.autowash.features.user.dto.ProfileResponse;
-import com.autowash.features.user.dto.UserResponse;
+import com.autowash.features.user.dto.request.CreateStaffRequest;
+import com.autowash.features.user.dto.request.UpdateProfileRequest;
+import com.autowash.features.user.dto.response.ProfileResponse;
+import com.autowash.features.user.dto.response.UserResponse;
 import com.autowash.features.user.entity.CustomerProfile;
 import com.autowash.features.user.entity.User;
 import com.autowash.features.car.enums.CarStatus;
@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import com.autowash.features.user.dto.AdminUserResponse;
+import com.autowash.features.user.dto.response.AdminUserResponse;
 @Service
 @RequiredArgsConstructor
 public class UserService {

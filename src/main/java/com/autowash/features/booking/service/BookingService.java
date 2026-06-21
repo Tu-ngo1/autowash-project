@@ -3,11 +3,11 @@ package com.autowash.features.booking.service;
 
 import com.autowash.features.washservice.service.WashService;
 
-import com.autowash.features.booking.dto.CreateBookingRequest;
-import com.autowash.features.booking.dto.UpdateBookingStatusRequest;
-import com.autowash.features.booking.dto.BookingDetailResponse;
-import com.autowash.features.booking.dto.BookingResponse;
-import com.autowash.features.booking.dto.QrCodeResponse;
+import com.autowash.features.booking.dto.request.CreateBookingRequest;
+import com.autowash.features.booking.dto.request.UpdateBookingStatusRequest;
+import com.autowash.features.booking.dto.response.BookingDetailResponse;
+import com.autowash.features.booking.dto.response.BookingResponse;
+import com.autowash.features.booking.dto.response.QrCodeResponse;
 import com.autowash.features.booking.entity.Booking;
 import com.autowash.features.booking.entity.BookingDetail;
 import com.autowash.features.car.entity.Car;

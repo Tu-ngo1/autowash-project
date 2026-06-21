@@ -3,9 +3,9 @@ package com.autowash.features.car.controller;
 import com.autowash.features.washservice.entity.Service;
 import com.autowash.features.car.entity.Car;
 
-import com.autowash.features.car.dto.CreateCarRequest;
-import com.autowash.features.car.dto.UpdateCarRequest;
-import com.autowash.features.car.dto.CarResponse;
+import com.autowash.features.car.dto.request.CreateCarRequest;
+import com.autowash.features.car.dto.request.UpdateCarRequest;
+import com.autowash.features.car.dto.response.CarResponse;
 import com.autowash.features.car.service.CarService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;

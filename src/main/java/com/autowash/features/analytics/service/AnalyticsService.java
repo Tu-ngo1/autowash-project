@@ -3,13 +3,13 @@ package com.autowash.features.analytics.service;
 
 import com.autowash.features.user.entity.User;
 
-import com.autowash.features.booking.dto.BookingResponse;
-import com.autowash.features.analytics.dto.BookingStatusResponse;
-import com.autowash.features.analytics.dto.RevenueResponse;
-import com.autowash.features.promotion.dto.TopUsedVoucherResponse;
-import com.autowash.features.promotion.dto.VoucherResponse;
-import com.autowash.features.analytics.dto.DashboardAnalyticsResponse;
-import com.autowash.features.analytics.dto.ServiceRatioResponse;
+import com.autowash.features.booking.dto.response.BookingResponse;
+import com.autowash.features.analytics.dto.response.BookingStatusResponse;
+import com.autowash.features.analytics.dto.response.RevenueResponse;
+import com.autowash.features.promotion.dto.response.TopUsedVoucherResponse;
+import com.autowash.features.promotion.dto.response.VoucherResponse;
+import com.autowash.features.analytics.dto.response.DashboardAnalyticsResponse;
+import com.autowash.features.analytics.dto.response.ServiceRatioResponse;
 import com.autowash.features.booking.entity.Booking;
 import com.autowash.features.booking.entity.Payment;
 import com.autowash.features.promotion.entity.Promotion;

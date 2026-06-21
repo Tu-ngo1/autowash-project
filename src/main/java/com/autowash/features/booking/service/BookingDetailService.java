@@ -4,7 +4,7 @@ import com.autowash.features.booking.entity.Booking;
 
 
 
-import com.autowash.features.booking.dto.BookingDetailResponse;
+import com.autowash.features.booking.dto.response.BookingDetailResponse;
 import com.autowash.features.booking.entity.BookingDetail;
 import com.autowash.features.booking.repository.BookingDetailRepository;
 import lombok.RequiredArgsConstructor;

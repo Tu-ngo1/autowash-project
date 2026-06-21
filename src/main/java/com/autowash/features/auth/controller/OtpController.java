@@ -2,8 +2,8 @@ package com.autowash.features.auth.controller;
 
 import com.autowash.features.washservice.entity.Service;
 
-import com.autowash.features.auth.dto.CreateOtpRequest;
-import com.autowash.features.auth.dto.VerifyOtpRequest;
+import com.autowash.features.auth.dto.request.CreateOtpRequest;
+import com.autowash.features.auth.dto.request.VerifyOtpRequest;
 import com.autowash.features.auth.entity.OtpToken;
 import com.autowash.features.user.entity.User;
 import com.autowash.features.auth.service.OtpService;

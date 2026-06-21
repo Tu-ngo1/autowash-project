@@ -1,7 +1,7 @@
 package com.autowash.features.user.mapper;
 
-import com.autowash.features.user.dto.AdminUserResponse;
-import com.autowash.features.user.dto.UserResponse;
+import com.autowash.features.user.dto.response.AdminUserResponse;
+import com.autowash.features.user.dto.response.UserResponse;
 import com.autowash.features.user.entity.CustomerProfile;
 import com.autowash.features.user.entity.User;
 import com.autowash.features.user.enums.TierLevel;

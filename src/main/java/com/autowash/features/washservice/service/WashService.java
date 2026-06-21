@@ -3,9 +3,9 @@ package com.autowash.features.washservice.service;
 import com.autowash.features.washservice.entity.Service;
 import com.autowash.features.booking.entity.Booking;
 
-import com.autowash.features.washservice.dto.CreateServiceRequest;
-import com.autowash.features.washservice.dto.UpdateServiceRequest;
-import com.autowash.features.washservice.dto.ServiceResponse;
+import com.autowash.features.washservice.dto.request.CreateServiceRequest;
+import com.autowash.features.washservice.dto.request.UpdateServiceRequest;
+import com.autowash.features.washservice.dto.response.ServiceResponse;
 
 import com.autowash.features.washservice.repository.ServiceRepository;
 import lombok.RequiredArgsConstructor;

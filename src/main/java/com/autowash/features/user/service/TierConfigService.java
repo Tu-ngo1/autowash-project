@@ -4,7 +4,7 @@ import com.autowash.features.user.entity.User;
 
 
 
-import com.autowash.features.user.dto.TierConfigResponse;
+import com.autowash.features.user.dto.response.TierConfigResponse;
 import com.autowash.features.user.repository.TierConfigRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

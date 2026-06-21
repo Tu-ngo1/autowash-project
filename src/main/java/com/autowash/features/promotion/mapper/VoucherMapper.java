@@ -1,6 +1,6 @@
 package com.autowash.features.promotion.mapper;
 
-import com.autowash.features.promotion.dto.VoucherResponse;
+import com.autowash.features.promotion.dto.response.VoucherResponse;
 import com.autowash.features.promotion.entity.Promotion;
 import org.springframework.stereotype.Component;
 

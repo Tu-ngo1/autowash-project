@@ -3,9 +3,9 @@ package com.autowash.features.car.service;
 
 import com.autowash.features.user.service.UserService;
 
-import com.autowash.features.car.dto.CreateCarRequest;
-import com.autowash.features.car.dto.UpdateCarRequest;
-import com.autowash.features.car.dto.CarResponse;
+import com.autowash.features.car.dto.request.CreateCarRequest;
+import com.autowash.features.car.dto.request.UpdateCarRequest;
+import com.autowash.features.car.dto.response.CarResponse;
 import com.autowash.features.car.entity.Car;
 import com.autowash.features.user.entity.User;
 import com.autowash.features.car.entity.VehicleModel;
