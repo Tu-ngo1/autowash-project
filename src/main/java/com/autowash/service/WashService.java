@@ -2,8 +2,13 @@ package com.autowash.service;
 
 import com.autowash.dto.request.CreateServiceRequest;
 import com.autowash.dto.request.UpdateServiceRequest;
+import com.autowash.dto.response.AvailableServiceResponse;
 import com.autowash.dto.response.ServiceResponse;
+import com.autowash.entity.Car;
 import com.autowash.entity.Service;
+import com.autowash.enums.VehicleSize;
+import com.autowash.repository.CarRepository;
+import com.autowash.repository.ServicePriceRepository;
 import com.autowash.repository.ServiceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,6 +21,8 @@ import java.util.List;
 public class WashService {
 
     private final ServiceRepository serviceRepository;
+    private final ServicePriceRepository servicePriceRepository;
+    private final CarRepository carRepository;
 
     // Admin tạo dịch vụ mới
     public ServiceResponse createService(CreateServiceRequest request) {
@@ -122,5 +129,35 @@ public class WashService {
                 .description(service.getDescription())
                 .active(service.getActive())
                 .build();
+    }
+
+    public List<AvailableServiceResponse> getServicesForCustomerCar(
+            Long customerId,
+            Long carId
+    ) {
+
+        Car car = carRepository.findById(carId)
+                .orElseThrow(() -> new RuntimeException("Car not found"));
+
+        if (!car.getUser().getId().equals(customerId)) {
+            throw new RuntimeException("Bạn không sở hữu xe này");
+        }
+
+        VehicleSize size =
+                car.getVehicleModel().getVehicleSize();
+
+        return servicePriceRepository
+                .findByVehicleSizeAndActiveTrue(size)
+                .stream()
+                .map(price -> AvailableServiceResponse.builder()
+                        .serviceId(price.getService().getId())
+                        .serviceName(price.getService().getName())
+                        .description(price.getService().getDescription())
+                        .servicePriceId(price.getId())
+                        .price(price.getPrice())
+                        .durationMinutes(price.getDurationMinutes())
+                        .vehicleSize(size.name())
+                        .build())
+                .toList();
     }
 }

@@ -1,17 +1,15 @@
 package com.autowash.controller;
 
+import com.autowash.dto.response.AvailableServiceResponse;
 import com.autowash.dto.response.ProfileResponse;
 import com.autowash.dto.response.UserResponse;
 import com.autowash.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 
 import com.autowash.dto.request.UpdateProfileRequest;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
 @RequestMapping("/api/customer")

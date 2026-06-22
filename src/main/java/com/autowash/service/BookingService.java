@@ -2,7 +2,6 @@ package com.autowash.service;
 
 import com.autowash.dto.request.CreateBookingRequest;
 import com.autowash.dto.request.UpdateBookingStatusRequest;
-import com.autowash.dto.response.BookingDetailResponse;
 import com.autowash.dto.response.BookingResponse;
 import com.autowash.dto.response.QrCodeResponse;
 import com.autowash.entity.Booking;
@@ -264,6 +263,7 @@ public class BookingService {
             );
         }
     }
+
 
     private void validateSlotAvailable(LocalDateTime scheduledStartTime) {
         Collection<BookingStatus> activeStatuses = List.of(

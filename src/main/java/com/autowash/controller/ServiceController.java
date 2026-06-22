@@ -1,5 +1,6 @@
 package com.autowash.controller;
 
+import com.autowash.dto.response.AvailableServiceResponse;
 import com.autowash.dto.response.ServiceResponse;
 import com.autowash.service.WashService;
 import lombok.RequiredArgsConstructor;
@@ -30,5 +31,16 @@ public class ServiceController {
     @GetMapping("/{id}")
     public ServiceResponse getServiceById(@PathVariable Long id) {
         return washService.getServiceById(id);
+    }
+
+    @GetMapping("/customer/{customerId}/cars/{carId}/services")
+    public List<AvailableServiceResponse> getServicesForCar(
+            @PathVariable Long customerId,
+            @PathVariable Long carId
+    ) {
+        return washService.getServicesForCustomerCar(
+                customerId,
+                carId
+        );
     }
 }

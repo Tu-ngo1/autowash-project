@@ -20,4 +20,7 @@ public interface ServicePriceRepository extends JpaRepository<ServicePrice, Long
 
     // Chống tạo trùng giá cho cùng 1 service và size
     boolean existsByServiceIdAndVehicleSize(Long serviceId, VehicleSize vehicleSize);
+    
+    List<ServicePrice> findByVehicleSizeAndActiveTrue(VehicleSize vehicleSize);
+
 }
