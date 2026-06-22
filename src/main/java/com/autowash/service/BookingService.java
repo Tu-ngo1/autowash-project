@@ -20,7 +20,7 @@ import com.autowash.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
-
+import com.autowash.mapper.BookingMapper;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -35,6 +35,7 @@ public class BookingService {
     private final ServicePriceRepository servicePriceRepository;
     private final UserRepository userRepository;
     private final CarRepository carRepository;
+    private final BookingMapper bookingMapper;
 
     private static final int MIN_BOOKING_BUFFER_MINUTES = 30;
     private static final int CANCEL_BUFFER_MINUTES = 60;
@@ -115,18 +116,18 @@ public class BookingService {
 
         bookingDetailRepository.saveAll(details);
 
-        return toBookingResponse(savedBooking);
+        return bookingMapper.toResponse(savedBooking);
     }
 
     public List<BookingResponse> getMyBookings(Long customerId) {
         return bookingRepository.findByUserIdOrderByScheduledStartTimeDesc(customerId)
                 .stream()
-                .map(this::toBookingResponse)
+                .map(bookingMapper::toResponse)
                 .toList();
     }
 
     public BookingResponse getBookingById(Long bookingId) {
-        return toBookingResponse(findBookingOrThrow(bookingId));
+        return bookingMapper.toResponse(findBookingOrThrow(bookingId));
     }
 
     public void cancelBooking(Long customerId, Long bookingId) {
@@ -185,7 +186,7 @@ public class BookingService {
         booking.setStatus(BookingStatus.ARRIVED);
         booking.setArrivedAt(LocalDateTime.now());
 
-        return toBookingResponse(bookingRepository.save(booking));
+        return bookingMapper.toResponse(bookingRepository.save(booking));
     }
 
     public BookingResponse updateBookingStatus(
@@ -213,7 +214,7 @@ public class BookingService {
             booking.setCompletedAt(LocalDateTime.now());
         }
 
-        return toBookingResponse(bookingRepository.save(booking));
+        return bookingMapper.toResponse(bookingRepository.save(booking));
     }
 
     public QrCodeResponse getQrCode(Long customerId, Long bookingId) {
@@ -349,38 +350,4 @@ public class BookingService {
         return "QR-" + UUID.randomUUID();
     }
 
-    private BookingResponse toBookingResponse(Booking booking) {
-        List<BookingDetailResponse> detailResponses =
-                bookingDetailRepository.findByBookingId(booking.getId())
-                        .stream()
-                        .map(this::toBookingDetailResponse)
-                        .toList();
-
-        return BookingResponse.builder()
-                .id(booking.getId())
-                .bookingCode(booking.getBookingCode())
-                .customerName(booking.getUser().getFullName())
-                .phone(booking.getUser().getPhone())
-                .vehicleId(booking.getVehicle().getId())
-                .vehicleLicensePlate(booking.getVehicle().getLicensePlate())
-                .scheduledStartTime(booking.getScheduledStartTime())
-                .expectedEndTime(booking.getExpectedEndTime())
-                .status(booking.getStatus())
-                .totalPrice(booking.getTotalPrice())
-                .bayNumber(booking.getBayNumber())
-                .late(booking.getLate())
-                .customerNote(booking.getCustomerNote())
-                .details(detailResponses)
-                .build();
-    }
-
-    private BookingDetailResponse toBookingDetailResponse(BookingDetail detail) {
-        return BookingDetailResponse.builder()
-                .id(detail.getId())
-                .serviceId(detail.getServicePrice().getService().getId())
-                .serviceName(detail.getServicePrice().getService().getName())
-                .actualPrice(detail.getActualPrice())
-                .actualDurationMinutes(detail.getActualDurationMinutes())
-                .build();
-    }
 }

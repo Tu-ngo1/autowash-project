@@ -4,6 +4,7 @@ import com.autowash.dto.response.BookingDetailResponse;
 import com.autowash.dto.response.BookingResponse;
 import com.autowash.entity.Booking;
 import com.autowash.entity.BookingDetail;
+import com.autowash.entity.CustomerProfile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -44,27 +45,49 @@ public class BookingMapper {
 
         if (totalPrice == null) {
             totalPrice = details.stream()
-                    .mapToInt(detail -> detail.getActualPrice() == null ? 0 : detail.getActualPrice())
+                    .mapToInt(d -> d.getActualPrice() == null ? 0 : d.getActualPrice())
                     .sum();
+        }
+
+        String tierLevel = null;
+
+        if (booking.getUser() != null && booking.getUser().getCustomerProfile() != null) {
+            CustomerProfile profile = booking.getUser().getCustomerProfile();
+
+            if (profile.getTierConfig() != null
+                    && profile.getTierConfig().getTierLevel() != null) {
+                tierLevel = profile.getTierConfig().getTierLevel().name();
+            }
         }
 
         return BookingResponse.builder()
                 .id(booking.getId())
                 .bookingCode(booking.getBookingCode())
+
                 .customerName(booking.getUser() != null ? booking.getUser().getFullName() : null)
-                .phone(booking.getUser() != null ? booking.getUser().getPhone() : null)
+                .customerPhone(booking.getUser() != null ? booking.getUser().getPhone() : null)
+                .customerEmail(booking.getUser() != null ? booking.getUser().getEmail() : null)
+
                 .vehicleId(booking.getVehicle() != null ? booking.getVehicle().getId() : null)
                 .vehicleLicensePlate(booking.getVehicle() != null ? booking.getVehicle().getLicensePlate() : null)
+
                 .scheduledStartTime(booking.getScheduledStartTime())
                 .expectedEndTime(booking.getExpectedEndTime())
+
                 .status(booking.getStatus())
                 .services(services)
+
                 .paymentMethod(paymentMethod)
                 .paymentStatus(paymentStatus)
+
                 .totalPrice(totalPrice)
                 .bayNumber(booking.getBayNumber())
                 .late(booking.getLate())
                 .customerNote(booking.getCustomerNote())
+
+                .tierLevel(tierLevel)
+                .discount(0)
+
                 .details(details)
                 .build();
     }
@@ -74,8 +97,8 @@ public class BookingMapper {
             return null;
         }
 
-        String serviceName = null;
         Long serviceId = null;
+        String serviceName = null;
 
         if (detail.getServicePrice() != null
                 && detail.getServicePrice().getService() != null) {
