@@ -1,11 +1,9 @@
 package com.autowash.controller;
 
-import com.autowash.dto.response.AvailableServiceResponse;
 import com.autowash.dto.response.ProfileResponse;
 import com.autowash.dto.response.UserResponse;
 import com.autowash.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 
