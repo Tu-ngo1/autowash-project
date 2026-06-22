@@ -21,7 +21,8 @@ public class BookingResponse {
     private Long id;
     private String bookingCode;
     private String customerName;
-    private String phone;
+    private String customerPhone;
+    private String customerEmail;
     private Long vehicleId;
     private String vehicleLicensePlate;
     private LocalDateTime scheduledStartTime;
@@ -31,9 +32,12 @@ public class BookingResponse {
     private String paymentMethod;
     private String paymentStatus;
     private Integer totalPrice;
+    private Integer finalPrice;
     private Integer bayNumber;
     private Boolean late;
     private String customerNote;
+    private String tierLevel;
+    private Integer discount;
     private List<BookingDetailResponse> details;
 }
 
