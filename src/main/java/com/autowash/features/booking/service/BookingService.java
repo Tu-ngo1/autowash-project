@@ -27,9 +27,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.ArrayList;
+import com.autowash.features.booking.repository.DailyOperationsConfigRepository;
+import com.autowash.features.booking.dto.response.AvailableSlotResponse;
 
 @org.springframework.stereotype.Service
 @RequiredArgsConstructor
@@ -41,6 +45,7 @@ public class BookingService {
     private final UserRepository userRepository;
     private final CarRepository carRepository;
     private final BookingMapper bookingMapper;
+    private final DailyOperationsConfigRepository dailyOperationsConfigRepository;
 
     private static final int MIN_BOOKING_BUFFER_MINUTES = 30;
     private static final int CANCEL_BUFFER_MINUTES = 60;
@@ -360,6 +365,15 @@ public class BookingService {
 
     private String generateQrContent() {
         return "QR-" + UUID.randomUUID();
+    }
+
+    public List<AvailableSlotResponse> getAvailableSlots(LocalDate date) {
+        // TODO: USER sẽ tự tay viết logic tính toán các slot đặt lịch trống tại đây để hiểu rõ cơ chế hoạt động.
+        // Gợi ý: 
+        // 1. Lấy cấu hình từ dailyOperationsConfigRepository theo ngày (hoặc dùng mặc định: 8h - 18h, số khoang = 2, interval = 90 phút).
+        // 2. Lặp qua các mốc thời gian bắt đầu và đếm số lượng xe đang rửa tại mỗi mốc.
+        // 3. Nếu số xe < số khoang rửa và thời gian đặt lịch thỏa mãn (ví dụ: > hiện tại + 30 phút), đánh dấu ca đó khả dụng.
+        return new ArrayList<>();
     }
 }
 

@@ -23,6 +23,8 @@ public interface ServicePriceRepository extends JpaRepository<ServicePrice, Long
     );
 
     boolean existsByServiceIdAndVehicleSize(Long serviceId, VehicleSize vehicleSize);
+
+    List<ServicePrice> findByVehicleSizeAndActiveTrue(VehicleSize vehicleSize);
 }
 
 

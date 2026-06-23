@@ -18,7 +18,7 @@ import java.util.Date;
 public class JwtService {
 
     private static final String SECRET_KEY = "autowash_secret_key_2026_must_be_long_enough_for_jwt_security";
-    private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 24; // 24 hours
+    private static final long EXPIRATION_TIME = 1000 * 60 * 30; // 24 hours
 
     private Key getSignInKey() {
         return Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));

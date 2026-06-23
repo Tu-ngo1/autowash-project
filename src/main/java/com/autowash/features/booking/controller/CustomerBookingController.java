@@ -15,6 +15,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.time.LocalDate;
+import com.autowash.features.booking.dto.response.BookingDataResponse;
+import com.autowash.features.car.enums.VehicleSize;
+import com.autowash.features.washservice.service.WashService;
 
 @RestController
 @RequestMapping("/api/customer/bookings")
@@ -23,6 +27,20 @@ public class CustomerBookingController {
 
     private final BookingService bookingService;
     private final UserService userService;
+    private final WashService washService;
+
+    @GetMapping("/data")
+    public BookingDataResponse getBookingData(
+            @RequestParam VehicleSize carSize,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        var services = washService.getServicesByVehicleSize(carSize);
+        var slots = bookingService.getAvailableSlots(date);
+        return BookingDataResponse.builder()
+                .services(services)
+                .availableSlots(slots)
+                .build();
+    }
 
     @PostMapping
     public BookingResponse createBooking(@RequestBody CreateBookingRequest request) {

@@ -8,6 +8,11 @@ import com.autowash.features.washservice.dto.request.UpdateServiceRequest;
 import com.autowash.features.washservice.dto.response.ServiceResponse;
 
 import com.autowash.features.washservice.repository.ServiceRepository;
+import com.autowash.features.washservice.repository.ServicePriceRepository;
+import com.autowash.features.car.repository.CarRepository;
+import com.autowash.features.car.enums.VehicleSize;
+import com.autowash.features.washservice.dto.response.AvailableServiceResponse;
+import com.autowash.features.car.entity.Car;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -19,6 +24,8 @@ import java.util.List;
 public class WashService {
 
     private final ServiceRepository serviceRepository;
+    private final ServicePriceRepository servicePriceRepository;
+    private final CarRepository carRepository;
 
     // Admin tạo dịch vụ mới
     public ServiceResponse createService(CreateServiceRequest request) {
@@ -125,6 +132,34 @@ public class WashService {
                 .description(service.getDescription())
                 .active(service.getActive())
                 .build();
+    }
+
+    public List<AvailableServiceResponse> getServicesByVehicleSize(VehicleSize size) {
+        return servicePriceRepository.findByVehicleSizeAndActiveTrue(size)
+                .stream()
+                .map(price -> AvailableServiceResponse.builder()
+                        .serviceId(price.getService().getId())
+                        .serviceName(price.getService().getName())
+                        .description(price.getService().getDescription())
+                        .servicePriceId(price.getId())
+                        .price(price.getPrice())
+                        .durationMinutes(price.getDurationMinutes())
+                        .vehicleSize(size.name())
+                        .isMainService(price.getService().getIsMainService())
+                        .build())
+                .toList();
+    }
+
+    public List<AvailableServiceResponse> getServicesForCustomerCar(Long customerId, Long carId) {
+        Car car = carRepository.findById(carId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phương tiện"));
+
+        if (!car.getUser().getId().equals(customerId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không sở hữu phương tiện này");
+        }
+
+        VehicleSize size = car.getVehicleModel().getVehicleSize();
+        return getServicesByVehicleSize(size);
     }
 }
 
