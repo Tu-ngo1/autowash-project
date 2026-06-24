@@ -4,6 +4,7 @@ import com.autowash.features.booking.entity.Booking;
 
 public enum PaymentMethod {
     CASH,
-    PAYOS
+    PAYOS,
+    WALLET
 }
 
