@@ -59,7 +59,8 @@ public class CustomerBookingController {
         User currentUser = userService.getCurrentUserEntity();
         BookingResponse booking = bookingService.getBookingById(id);
         
-        if (!booking.getCustomerPhone().equals(currentUser.getPhone())) {
+        if (booking.getCustomerPhone() == null ||
+                !booking.getCustomerPhone().equals(currentUser.getPhone())) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Bạn không có quyền xem thông tin booking này"

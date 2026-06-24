@@ -1,6 +1,5 @@
 package com.autowash.features.booking.service;
 
-
 import com.autowash.features.washservice.service.WashService;
 
 import com.autowash.features.booking.dto.request.CreateBookingRequest;
@@ -46,6 +45,7 @@ public class BookingService {
     private final CarRepository carRepository;
     private final BookingMapper bookingMapper;
     private final DailyOperationsConfigRepository dailyOperationsConfigRepository;
+    private final QrCodeService qrCodeService;
 
     private static final int MIN_BOOKING_BUFFER_MINUTES = 30;
     private static final int CANCEL_BUFFER_MINUTES = 60;
@@ -107,8 +107,12 @@ public class BookingService {
         LocalDateTime expectedEndTime =
                 request.getScheduledStartTime().plusMinutes(totalDuration);
 
+
+        String bookingCode = generateBookingCode();
+        String qrContent = qrCodeService.generateQrContent(bookingCode);
+
         Booking booking = Booking.builder()
-                .bookingCode(generateBookingCode())
+                .bookingCode(bookingCode)
                 .user(customer)
                 .vehicle(car)
                 .scheduledStartTime(request.getScheduledStartTime())
@@ -116,7 +120,7 @@ public class BookingService {
                 .status(BookingStatus.PENDING)
                 .customerNote(request.getCustomerNote())
                 .totalPrice(totalPrice)
-                .qrContent(generateQrContent())
+                .qrContent(qrContent)
                 .qrUsed(false)
                 .build();
 
@@ -188,14 +192,7 @@ public class BookingService {
         if (Boolean.TRUE.equals(booking.getQrUsed())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Mã QR đã được sử dụng"
-            );
-        }
-
-        if (booking.getStatus() != BookingStatus.PENDING) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Booking không ở trạng thái có thể check-in"
+                    "QR đã được sử dụng"
             );
         }
 
@@ -281,6 +278,7 @@ public class BookingService {
             );
         }
     }
+
 
     private void validateSlotAvailable(LocalDateTime scheduledStartTime) {
         Collection<BookingStatus> activeStatuses = List.of(
