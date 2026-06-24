@@ -42,6 +42,7 @@ com\autowash\dto\response\UserResponse.class
 com\autowash\dto\response\VoucherResponse.class
 com\autowash\dto\response\BookingDetailResponse$BookingDetailResponseBuilder.class
 com\autowash\dto\request\UpdateBookingStatusRequest.class
+com\autowash\dto\response\AvailableServiceResponse.class
 com\autowash\dto\response\BookingStatusResponse.class
 com\autowash\dto\response\ServiceResponse.class
 com\autowash\dto\response\TierConfigResponse$1.class
@@ -70,9 +71,11 @@ com\autowash\repository\PromotionRepository.class
 com\autowash\mapper\VoucherMapper.class
 com\autowash\dto\response\TopUsedVoucherResponse.class
 com\autowash\mapper\VoucherMapper$1.class
+com\autowash\controller\CustomerBookingController.class
 com\autowash\infrastructure\security\JwtAuthenticationFilter.class
 com\autowash\entity\Promotion.class
 com\autowash\enums\PaymentMethod.class
+com\autowash\dto\response\AvailableServiceResponse$AvailableServiceResponseBuilder.class
 com\autowash\dto\response\ServicePriceResponse$ServicePriceResponseBuilder.class
 com\autowash\repository\TierConfigRepository.class
 com\autowash\dto\request\VerifyOtpRequest.class

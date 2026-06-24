@@ -2,6 +2,7 @@ D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\co
 D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\com\autowash\controller\AdminController.java
 D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\com\autowash\controller\AuthController.java
 D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\com\autowash\controller\CarController.java
+D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\com\autowash\controller\CustomerBookingController.java
 D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\com\autowash\controller\CustomerController.java
 D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\com\autowash\controller\OtpController.java
 D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\com\autowash\controller\ServiceController.java
@@ -23,6 +24,7 @@ D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\co
 D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\com\autowash\dto\request\VerifyOtpRequest.java
 D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\com\autowash\dto\response\AdminCustomerResponse.java
 D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\com\autowash\dto\response\AuthResponse.java
+D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\com\autowash\dto\response\AvailableServiceResponse.java
 D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\com\autowash\dto\response\AvailableSlotResponse.java
 D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\com\autowash\dto\response\BookingDetailResponse.java
 D:\SWP391_SU26\CarWashProject_v3\autowash-project-BE-clone_main\src\main\java\com\autowash\dto\response\BookingResponse.java

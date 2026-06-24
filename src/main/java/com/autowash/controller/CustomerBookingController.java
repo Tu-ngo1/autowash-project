@@ -5,6 +5,7 @@ import com.autowash.dto.response.BookingResponse;
 import com.autowash.dto.response.QrCodeResponse;
 import com.autowash.entity.User;
 import com.autowash.service.BookingService;
+import com.autowash.service.QrCodeService;
 import com.autowash.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,7 @@ public class CustomerBookingController {
 
     private final BookingService bookingService;
     private final UserService userService;
+    private final QrCodeService qrCodeService;
 
     // Customer tạo booking mới
     @PostMapping
