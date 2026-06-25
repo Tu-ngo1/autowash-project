@@ -1,8 +1,6 @@
 package com.autowash.features.booking.service;
 
-
 import com.autowash.features.washservice.service.WashService;
-
 import com.autowash.features.booking.dto.request.CreateBookingRequest;
 import com.autowash.features.booking.dto.request.UpdateBookingStatusRequest;
 import com.autowash.features.booking.dto.response.BookingDetailResponse;
@@ -10,20 +8,42 @@ import com.autowash.features.booking.dto.response.BookingResponse;
 import com.autowash.features.booking.dto.response.QrCodeResponse;
 import com.autowash.features.booking.entity.Booking;
 import com.autowash.features.booking.entity.BookingDetail;
-import com.autowash.features.car.entity.Car;
-import com.autowash.features.user.entity.CustomerProfile;
-import com.autowash.features.washservice.entity.ServicePrice;
-import com.autowash.features.user.entity.User;
+import com.autowash.features.booking.entity.Payment;
 import com.autowash.features.booking.enums.BookingStatus;
-import com.autowash.features.car.enums.CarStatus;
+import com.autowash.features.booking.enums.PaymentMethod;
+import com.autowash.features.booking.enums.PaymentStatus;
 import com.autowash.features.booking.repository.BookingDetailRepository;
-import com.autowash.features.booking.mapper.BookingMapper;
 import com.autowash.features.booking.repository.BookingRepository;
+import com.autowash.features.booking.repository.PaymentRepository;
+import com.autowash.features.booking.mapper.BookingMapper;
+import com.autowash.features.car.entity.Car;
+import com.autowash.features.car.enums.CarStatus;
 import com.autowash.features.car.repository.CarRepository;
-import com.autowash.features.washservice.repository.ServicePriceRepository;
+import com.autowash.features.user.entity.CustomerProfile;
+import com.autowash.features.user.entity.User;
 import com.autowash.features.user.repository.UserRepository;
+import com.autowash.features.washservice.entity.ServicePrice;
+import com.autowash.features.washservice.repository.ServicePriceRepository;
+import com.autowash.features.booking.entity.DailyOperationsConfig;
+import com.autowash.features.booking.repository.DailyOperationsConfigRepository;
+import com.autowash.features.booking.dto.response.AvailableSlotResponse;
+import com.autowash.features.booking.dto.response.BusinessHoursResponse;
+
+import com.autowash.features.promotion.entity.CustomerVoucher;
+import com.autowash.features.promotion.entity.Promotion;
+import com.autowash.features.promotion.enums.VoucherStatus;
+import com.autowash.features.promotion.repository.CustomerVoucherRepository;
+
+import com.autowash.features.wallet.entity.Wallet;
+import com.autowash.features.wallet.entity.WalletTransaction;
+import com.autowash.features.wallet.enums.WalletTransactionType;
+import com.autowash.features.wallet.repository.WalletRepository;
+import com.autowash.features.wallet.repository.WalletTransactionRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -33,13 +53,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
-import com.autowash.features.booking.entity.DailyOperationsConfig;
-import com.autowash.features.booking.repository.DailyOperationsConfigRepository;
-import com.autowash.features.booking.dto.response.AvailableSlotResponse;
-import com.autowash.features.booking.dto.response.BusinessHoursResponse;
 
-
-@org.springframework.stereotype.Service
+@Service
 @RequiredArgsConstructor
 public class BookingService {
 
@@ -50,10 +65,15 @@ public class BookingService {
     private final CarRepository carRepository;
     private final BookingMapper bookingMapper;
     private final DailyOperationsConfigRepository dailyOperationsConfigRepository;
+    private final PaymentRepository paymentRepository;
+    private final CustomerVoucherRepository customerVoucherRepository;
+    private final WalletRepository walletRepository;
+    private final WalletTransactionRepository walletTransactionRepository;
 
     private static final int MIN_BOOKING_BUFFER_MINUTES = 30;
     private static final int CANCEL_BUFFER_MINUTES = 60;
 
+    @Transactional
     public BookingResponse createBooking(Long customerId, CreateBookingRequest request) {
 
         User customer = userRepository.findById(customerId)
@@ -99,7 +119,7 @@ public class BookingService {
                         )))
                 .toList();
 
-        int totalPrice = selectedPrices.stream()
+        int subTotal = selectedPrices.stream()
                 .mapToInt(ServicePrice::getPrice)
                 .sum();
 
@@ -120,7 +140,7 @@ public class BookingService {
                 .expectedEndTime(expectedEndTime)
                 .status(BookingStatus.PENDING)
                 .customerNote(request.getCustomerNote())
-                .totalPrice(totalPrice)
+                .totalPrice(subTotal)
                 .qrContent(generateQrContent())
                 .qrUsed(false)
                 .build();
@@ -137,6 +157,94 @@ public class BookingService {
                 .toList();
 
         bookingDetailRepository.saveAll(details);
+        savedBooking.setBookingDetails(details);
+
+        // Tính giảm giá theo hạng thành viên (Tier)
+        int tierDiscount = 0;
+        CustomerProfile profile = customer.getCustomerProfile();
+        if (profile != null && profile.getTierConfig() != null && profile.getTierConfig().getAutoDiscountPercent() != null) {
+            double discountPercent = profile.getTierConfig().getAutoDiscountPercent().doubleValue();
+            tierDiscount = (int) Math.round((subTotal * discountPercent) / 100);
+        }
+
+        // Tính giảm giá theo Voucher
+        int voucherDiscount = 0;
+        CustomerVoucher appliedVoucher = null;
+        if (request.getVoucherCode() != null && !request.getVoucherCode().trim().isEmpty()) {
+            String vCode = request.getVoucherCode().trim();
+            appliedVoucher = customerVoucherRepository.findByUserIdAndVoucherCodeAndStatus(
+                    customerId, vCode, VoucherStatus.AVAILABLE
+            ).orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Voucher không hợp lệ hoặc đã được sử dụng"
+            ));
+
+            if (appliedVoucher.getExpiredAt() != null && appliedVoucher.getExpiredAt().isBefore(LocalDateTime.now())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Voucher đã hết hạn");
+            }
+
+            Promotion promo = appliedVoucher.getPromotion();
+            if (promo != null) {
+                if (promo.getDiscountAmount() != null) {
+                    voucherDiscount = promo.getDiscountAmount();
+                } else if (promo.getDiscountPercent() != null) {
+                    double pct = promo.getDiscountPercent().doubleValue();
+                    voucherDiscount = (int) Math.round((subTotal * pct) / 100);
+                    if (promo.getMaxDiscountAmount() != null && voucherDiscount > promo.getMaxDiscountAmount()) {
+                        voucherDiscount = promo.getMaxDiscountAmount();
+                    }
+                }
+            }
+
+            appliedVoucher.setStatus(VoucherStatus.USED);
+            appliedVoucher.setUsedAt(LocalDateTime.now());
+            customerVoucherRepository.save(appliedVoucher);
+        }
+
+        int finalPrice = Math.max(subTotal - tierDiscount - voucherDiscount, 0);
+
+        PaymentStatus paymentStatus = PaymentStatus.PENDING;
+        LocalDateTime paidAt = null;
+
+        if (PaymentMethod.WALLET.equals(request.getPaymentMethod())) {
+            Wallet wallet = walletRepository.findByUserId(customerId)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST, "Tài khoản chưa được kích hoạt ví"
+                    ));
+
+            if (wallet.getBalance() < finalPrice) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Số dư ví không đủ để thanh toán"
+                );
+            }
+
+            wallet.setBalance(wallet.getBalance() - finalPrice);
+            walletRepository.save(wallet);
+
+            paymentStatus = PaymentStatus.PAID;
+            paidAt = LocalDateTime.now();
+
+            WalletTransaction walletTx = WalletTransaction.builder()
+                    .wallet(wallet)
+                    .amount(finalPrice)
+                    .transactionType(WalletTransactionType.PAYMENT)
+                    .description("Thanh toán cho đơn đặt lịch: " + savedBooking.getBookingCode())
+                    .build();
+            walletTransactionRepository.save(walletTx);
+        }
+
+        Payment payment = Payment.builder()
+                .booking(savedBooking)
+                .appliedVoucher(appliedVoucher)
+                .paymentMethod(request.getPaymentMethod())
+                .subTotal(subTotal)
+                .discountAmount(tierDiscount + voucherDiscount)
+                .finalPrice(finalPrice)
+                .paymentStatus(paymentStatus)
+                .paidAt(paidAt)
+                .build();
+
+        paymentRepository.save(payment);
+        savedBooking.setPayment(payment);
 
         return bookingMapper.toResponse(savedBooking);
     }
@@ -152,6 +260,7 @@ public class BookingService {
         return bookingMapper.toResponse(findBookingOrThrow(bookingId));
     }
 
+    @Transactional
     public void cancelBooking(Long customerId, Long bookingId) {
         Booking booking = findBookingOrThrow(bookingId);
 
@@ -183,6 +292,7 @@ public class BookingService {
         bookingRepository.save(booking);
     }
 
+    @Transactional
     public BookingResponse checkInByQr(String qrContent) {
         Booking booking = bookingRepository.findByQrContent(qrContent)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -211,6 +321,7 @@ public class BookingService {
         return bookingMapper.toResponse(bookingRepository.save(booking));
     }
 
+    @Transactional
     public BookingResponse updateBookingStatus(
             Long bookingId,
             UpdateBookingStatusRequest request
