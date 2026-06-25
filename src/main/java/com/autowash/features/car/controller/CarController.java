@@ -1,8 +1,5 @@
 package com.autowash.features.car.controller;
 
-import com.autowash.features.washservice.entity.Service;
-import com.autowash.features.car.entity.Car;
-
 import com.autowash.features.car.dto.request.CreateCarRequest;
 import com.autowash.features.car.dto.request.UpdateCarRequest;
 import com.autowash.features.car.dto.response.CarResponse;
@@ -19,12 +16,12 @@ public class CarController {
 
     private final CarService carService;
 
-    @GetMapping
+    @GetMapping({"", "/"})
     public List<CarResponse> getMyCars() {
         return carService.getMyCars();
     }
 
-    @PostMapping
+    @PostMapping({"", "/"})
     public CarResponse createCar(@RequestBody CreateCarRequest request) {
         return carService.createCar(request);
     }
@@ -42,5 +39,9 @@ public class CarController {
         carService.deleteCar(id);
         return "Car deleted successfully";
     }
-}
 
+    @GetMapping("/test")
+    public String testCarApi() {
+        return "Car API is working";
+    }
+}

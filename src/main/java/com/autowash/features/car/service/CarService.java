@@ -48,12 +48,7 @@ public class CarService {
             );
         }
 
-        if (request.getVehicleSize() == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Vehicle size is required"
-            );
-        }
+
         if (request.getVehicleModelId() == null) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -109,7 +104,7 @@ public class CarService {
             car.setLicensePlate(request.getLicensePlate());
         }
 
-        if (request.getVehicleSize() != null) {
+        if (request.getVehicleModelId() != null) {
             VehicleModel vehicleModel = vehicleModelRepository
                     .findById(request.getVehicleModelId())
                     .orElseThrow(() -> new ResponseStatusException(
