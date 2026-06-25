@@ -81,16 +81,13 @@ public class AuthService {
                     "Phone already exists"
             );
         }
-
-        Role role = request.getRole() != null ? request.getRole() : Role.CUSTOMER;
-
         User user = User.builder()
                 .fullName(fullName)
                 .username(username)
                 .email(email)
                 .phone(phone)
                 .password(passwordEncoder.encode(password))
-                .role(role)
+                .role(Role.CUSTOMER)
                 .status(UserStatus.ACTIVE)
                 .build();
 
@@ -140,14 +137,18 @@ public class AuthService {
             );
         }
 
-        User user = userRepository.findByUsernameOrPhone(
-                        request.getUsernameOrPhone(),
-                        request.getUsernameOrPhone()
-                )
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED,
-                        "Invalid username/phone or password"
-                ));
+        String emailOrPhone = normalizeRequired(
+                request.getUsernameOrPhone(),
+                "Email or phone is required"
+        );
+
+        User user = userRepository.findByEmailOrPhone(
+                emailOrPhone.toLowerCase(),
+                emailOrPhone
+        ).orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.UNAUTHORIZED,
+                "Invalid credentials"
+        ));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new ResponseStatusException(
