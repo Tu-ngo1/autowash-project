@@ -85,7 +85,7 @@ class AutowashApplicationTests {
     }
 
     @Test
-    void testLoginWithUsernameAndPhone() {
+    void testLoginWithEmailAndPhone() {
         // 1. Create and save test user
         User user = User.builder()
                 .fullName("Test Login User")
@@ -99,15 +99,15 @@ class AutowashApplicationTests {
 
         userRepository.save(user);
 
-        // 2. Test Login using Username
-        LoginRequest usernameLoginRequest = new LoginRequest();
-        usernameLoginRequest.setUsernameOrPhone(TEST_USERNAME);
-        usernameLoginRequest.setPassword(TEST_PASSWORD);
+        // 2. Test Login using Email
+        LoginRequest emailLoginRequest = new LoginRequest();
+        emailLoginRequest.setUsernameOrPhone("testloginuser@example.com");
+        emailLoginRequest.setPassword(TEST_PASSWORD);
 
-        AuthResponse usernameLoginResponse = authService.login(usernameLoginRequest);
-        assertNotNull(usernameLoginResponse);
-        assertNotNull(usernameLoginResponse.getToken());
-        assertEquals("CUSTOMER", usernameLoginResponse.getRole());
+        AuthResponse emailLoginResponse = authService.login(emailLoginRequest);
+        assertNotNull(emailLoginResponse);
+        assertNotNull(emailLoginResponse.getToken());
+        assertEquals("CUSTOMER", emailLoginResponse.getRole());
 
         // 3. Test Login using Phone
         LoginRequest phoneLoginRequest = new LoginRequest();
