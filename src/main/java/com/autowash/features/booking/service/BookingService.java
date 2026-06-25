@@ -28,12 +28,16 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
+import com.autowash.features.booking.entity.DailyOperationsConfig;
 import com.autowash.features.booking.repository.DailyOperationsConfigRepository;
 import com.autowash.features.booking.dto.response.AvailableSlotResponse;
+import com.autowash.features.booking.dto.response.BusinessHoursResponse;
+
 
 @org.springframework.stereotype.Service
 @RequiredArgsConstructor
@@ -81,7 +85,6 @@ public class BookingService {
         validateBookingTime(request.getScheduledStartTime());
         validateVehicleHasNoActiveBooking(car.getId());
         validateBookingWindow(customer, request.getScheduledStartTime());
-        validateSlotAvailable(request.getScheduledStartTime());
 
         List<ServicePrice> selectedPrices = request.getServiceIds()
                 .stream()
@@ -103,6 +106,8 @@ public class BookingService {
         int totalDuration = selectedPrices.stream()
                 .mapToInt(ServicePrice::getDurationMinutes)
                 .sum();
+
+        validateSlotAvailable(request.getScheduledStartTime(), totalDuration);
 
         LocalDateTime expectedEndTime =
                 request.getScheduledStartTime().plusMinutes(totalDuration);
@@ -282,22 +287,54 @@ public class BookingService {
         }
     }
 
-    private void validateSlotAvailable(LocalDateTime scheduledStartTime) {
-        Collection<BookingStatus> activeStatuses = List.of(
-                BookingStatus.PENDING,
-                BookingStatus.ARRIVED,
-                BookingStatus.IN_PROGRESS
-        );
+    private void validateSlotAvailable(LocalDateTime scheduledStartTime, int totalDuration) {
+        LocalDate date = scheduledStartTime.toLocalDate();
+        DailyOperationsConfig config = dailyOperationsConfigRepository.findByConfigDateWithLock(date)
+                .orElse(DailyOperationsConfig.builder()
+                        .configDate(date)
+                        .openTime(LocalTime.of(8, 0))
+                        .closeTime(LocalTime.of(18, 0))
+                        .bayCount(2)
+                        .isActive(true)
+                        .build());
 
-        boolean exists = bookingRepository.existsByScheduledStartTimeAndStatusIn(
-                scheduledStartTime,
-                activeStatuses
-        );
-
-        if (exists) {
+        if (Boolean.FALSE.equals(config.getIsActive())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Slot này đã có booking khác"
+                    "Cửa hàng đóng cửa vào ngày này"
+            );
+        }
+
+        LocalTime startTime = scheduledStartTime.toLocalTime();
+        int transitBufferMinutes = 5;
+        int neededDuration = totalDuration + transitBufferMinutes;
+        LocalTime endTime = startTime.plusMinutes(neededDuration);
+
+        if (startTime.isBefore(config.getOpenTime()) || endTime.isAfter(config.getCloseTime())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Thời gian hẹn nằm ngoài khung giờ hoạt động của cửa hàng (" 
+                    + config.getOpenTime() + " - " + config.getCloseTime() + ")"
+            );
+        }
+
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
+        List<Booking> activeBookings = bookingRepository
+                .findByScheduledStartTimeBetweenOrderByScheduledStartTimeAsc(startOfDay, endOfDay)
+                .stream()
+                .filter(b -> b.getStatus() == BookingStatus.PENDING 
+                          || b.getStatus() == BookingStatus.ARRIVED 
+                          || b.getStatus() == BookingStatus.IN_PROGRESS)
+                .toList();
+
+        LocalDateTime proposedEnd = scheduledStartTime.plusMinutes(neededDuration);
+        boolean hasFreeBay = checkBayAvailability(scheduledStartTime, proposedEnd, activeBookings, config.getBayCount());
+
+        if (!hasFreeBay) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Không còn khoang rửa xe trống cho khung giờ đã chọn"
             );
         }
     }
@@ -368,12 +405,131 @@ public class BookingService {
     }
 
     public List<AvailableSlotResponse> getAvailableSlots(LocalDate date) {
-        // TODO: USER sẽ tự tay viết logic tính toán các slot đặt lịch trống tại đây để hiểu rõ cơ chế hoạt động.
-        // Gợi ý: 
-        // 1. Lấy cấu hình từ dailyOperationsConfigRepository theo ngày (hoặc dùng mặc định: 8h - 18h, số khoang = 2, interval = 90 phút).
-        // 2. Lặp qua các mốc thời gian bắt đầu và đếm số lượng xe đang rửa tại mỗi mốc.
-        // 3. Nếu số xe < số khoang rửa và thời gian đặt lịch thỏa mãn (ví dụ: > hiện tại + 30 phút), đánh dấu ca đó khả dụng.
-        return new ArrayList<>();
+        return getAvailableSlots(date, 90);
+    }
+
+    public List<AvailableSlotResponse> getAvailableSlots(LocalDate date, int totalDurationMinutes) {
+        if (date == null) {
+            date = LocalDate.now();
+        }
+
+        DailyOperationsConfig config = dailyOperationsConfigRepository.findByConfigDate(date)
+                .orElse(DailyOperationsConfig.builder()
+                        .configDate(date)
+                        .openTime(LocalTime.of(8, 0))
+                        .closeTime(LocalTime.of(18, 0))
+                        .bayCount(2)
+                        .isActive(true)
+                        .build());
+
+        if (Boolean.FALSE.equals(config.getIsActive())) {
+            return new ArrayList<>();
+        }
+
+        int transitBufferMinutes = 5;
+        int neededDuration = totalDurationMinutes + transitBufferMinutes;
+
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
+        List<Booking> activeBookings = bookingRepository
+                .findByScheduledStartTimeBetweenOrderByScheduledStartTimeAsc(startOfDay, endOfDay)
+                .stream()
+                .filter(b -> b.getStatus() == BookingStatus.PENDING 
+                          || b.getStatus() == BookingStatus.ARRIVED 
+                          || b.getStatus() == BookingStatus.IN_PROGRESS)
+                .toList();
+
+        List<AvailableSlotResponse> availableSlots = new ArrayList<>();
+        LocalTime currentStart = config.getOpenTime();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime minStartTimeAllowed = now.plusMinutes(MIN_BOOKING_BUFFER_MINUTES);
+
+        while (currentStart.plusMinutes(neededDuration).isBefore(config.getCloseTime()) 
+               || currentStart.plusMinutes(neededDuration).equals(config.getCloseTime())) {
+
+            LocalDateTime proposedStart = date.atTime(currentStart);
+            LocalDateTime proposedEnd = proposedStart.plusMinutes(neededDuration);
+
+            boolean isTimeValid = proposedStart.isAfter(minStartTimeAllowed);
+
+            if (isTimeValid) {
+                boolean hasFreeBay = checkBayAvailability(proposedStart, proposedEnd, activeBookings, config.getBayCount());
+                
+                availableSlots.add(AvailableSlotResponse.builder()
+                        .startTime(proposedStart)
+                        .endTime(proposedEnd.minusMinutes(transitBufferMinutes))
+                        .available(hasFreeBay)
+                        .build());
+            } else {
+                availableSlots.add(AvailableSlotResponse.builder()
+                        .startTime(proposedStart)
+                        .endTime(proposedEnd.minusMinutes(transitBufferMinutes))
+                        .available(false)
+                        .build());
+            }
+
+            currentStart = currentStart.plusMinutes(30);
+        }
+
+        return availableSlots;
+    }
+
+    private boolean checkBayAvailability(LocalDateTime start, LocalDateTime end, List<Booking> bookings, int bayCount) {
+        List<Booking> overlapping = bookings.stream()
+                .filter(b -> b.getScheduledStartTime().isBefore(end) && b.getExpectedEndTime().isAfter(start))
+                .toList();
+
+        if (overlapping.isEmpty()) {
+            return true;
+        }
+
+        if (overlapping.size() < bayCount) {
+            return true;
+        }
+
+        List<LocalDateTime> checkpoints = new ArrayList<>();
+        checkpoints.add(start);
+        for (Booking b : overlapping) {
+            if (b.getScheduledStartTime().isAfter(start) && b.getScheduledStartTime().isBefore(end)) {
+                checkpoints.add(b.getScheduledStartTime());
+            }
+        }
+
+        for (LocalDateTime point : checkpoints) {
+            long concurrentCount = overlapping.stream()
+                    .filter(b -> (b.getScheduledStartTime().isBefore(point) || b.getScheduledStartTime().isEqual(point))
+                               && b.getExpectedEndTime().isAfter(point))
+                    .count();
+            
+            if (concurrentCount >= bayCount) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public BusinessHoursResponse getBusinessHoursForDate(LocalDate date) {
+        if (date == null) {
+            date = LocalDate.now();
+        }
+        DailyOperationsConfig config = dailyOperationsConfigRepository.findByConfigDate(date)
+                .orElse(DailyOperationsConfig.builder()
+                        .configDate(date)
+                        .openTime(LocalTime.of(8, 0))
+                        .closeTime(LocalTime.of(18, 0))
+                        .bayCount(2)
+                        .isActive(true)
+                        .build());
+        
+        String startTimeStr = config.getOpenTime() != null ? config.getOpenTime().toString().substring(0, 5) : "08:00";
+        String endTimeStr = config.getCloseTime() != null ? config.getCloseTime().toString().substring(0, 5) : "18:00";
+        
+        return BusinessHoursResponse.builder()
+                .startTime(startTimeStr)
+                .endTime(endTimeStr)
+                .build();
     }
 }
+
 

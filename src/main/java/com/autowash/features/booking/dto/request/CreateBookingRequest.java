@@ -1,6 +1,7 @@
 package com.autowash.features.booking.dto.request;
 
 import com.autowash.features.booking.entity.Booking;
+import com.autowash.features.booking.enums.PaymentMethod;
 
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotEmpty;
@@ -26,5 +27,11 @@ public class CreateBookingRequest {
     private List<Long> serviceIds;
 
     private String customerNote;
+
+    @NotNull(message = "Phương thức thanh toán không được để trống")
+    private PaymentMethod paymentMethod;
+
+    private String voucherCode;
 }
+
 

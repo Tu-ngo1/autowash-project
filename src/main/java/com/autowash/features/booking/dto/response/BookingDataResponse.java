@@ -13,5 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 public class BookingDataResponse {
     private List<AvailableServiceResponse> services;
-    private List<AvailableSlotResponse> availableSlots;
+    private List<AvailableSlotResponse> timeSlots;
+    private BusinessHoursResponse businessHours;
 }
+
