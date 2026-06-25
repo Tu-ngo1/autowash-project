@@ -244,6 +244,7 @@ public class BookingService {
         return QrCodeResponse.builder()
                 .bookingCode(booking.getBookingCode())
                 .qrContent(booking.getQrContent())
+                .qrImageBase64(qrCodeService.generateQrImageBase64(booking.getQrContent()))
                 .build();
     }
 
