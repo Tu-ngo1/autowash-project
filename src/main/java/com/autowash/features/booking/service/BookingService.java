@@ -39,8 +39,13 @@ import com.autowash.features.wallet.entity.WalletTransaction;
 import com.autowash.features.wallet.enums.WalletTransactionType;
 import com.autowash.features.wallet.repository.WalletRepository;
 import com.autowash.features.wallet.repository.WalletTransactionRepository;
+import vn.payos.PayOS;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import org.springframework.beans.factory.annotation.Value;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,6 +61,7 @@ import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BookingService {
 
     private final BookingRepository bookingRepository;
@@ -70,6 +76,19 @@ public class BookingService {
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
     private final QrCodeService qrCodeService;
+    private final PayOS payOS;
+
+    @Value("${payos.return-url}")
+    private String returnUrl;
+
+    @Value("${payos.cancel-url}")
+    private String cancelUrl;
+
+    @Value("${payos.test-mode:false}")
+    private boolean payosTestMode;
+
+    @Value("${payos.test-amount:10000}")
+    private long payosTestAmount;
 
     private static final int MIN_BOOKING_BUFFER_MINUTES = 30;
     private static final int CANCEL_BUFFER_MINUTES = 60;
@@ -230,7 +249,7 @@ public class BookingService {
 
             WalletTransaction walletTx = WalletTransaction.builder()
                     .wallet(wallet)
-                    .amount(finalPrice)
+                    .amount(-finalPrice)
                     .transactionType(WalletTransactionType.PAYMENT)
                     .description("Thanh toán cho đơn đặt lịch: " + savedBooking.getBookingCode())
                     .build();
@@ -251,7 +270,30 @@ public class BookingService {
         paymentRepository.save(payment);
         savedBooking.setPayment(payment);
 
-        return bookingMapper.toResponse(savedBooking);
+        BookingResponse response = bookingMapper.toResponse(savedBooking);
+
+        if (PaymentMethod.PAYOS.equals(request.getPaymentMethod())) {
+            try {
+                long orderCode = savedBooking.getId();
+                CreatePaymentLinkRequest payosRequest = CreatePaymentLinkRequest.builder()
+                        .orderCode(orderCode)
+                        .amount(payosTestMode ? payosTestAmount : (long) finalPrice)
+                        .description("Booking " + savedBooking.getBookingCode())
+                        .returnUrl(returnUrl)
+                        .cancelUrl(cancelUrl)
+                        .build();
+
+                CreatePaymentLinkResponse payosResponse = payOS.paymentRequests().create(payosRequest);
+                response.setCheckoutUrl(payosResponse.getCheckoutUrl());
+            } catch (Exception e) {
+                throw new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Không thể tạo link thanh toán PayOS: " + e.getMessage()
+                );
+            }
+        }
+
+        return response;
     }
 
     public List<BookingResponse> getMyBookings(Long customerId) {
@@ -270,51 +312,71 @@ public class BookingService {
         Booking booking = findBookingOrThrow(bookingId);
 
         if (!booking.getUser().getId().equals(customerId)) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Bạn không có quyền hủy booking này"
-            );
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền hủy booking này");
         }
 
-        if (booking.getStatus() != BookingStatus.PENDING) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Chỉ có thể hủy booking ở trạng thái PENDING"
-            );
+        if (booking.getStatus() != BookingStatus.PENDING && booking.getStatus() != BookingStatus.CONFIRM) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ có thể hủy lịch ở trạng thái PENDING hoặc CONFIRM");
         }
 
-        LocalDateTime latestCancelTime =
-                booking.getScheduledStartTime().minusMinutes(CANCEL_BUFFER_MINUTES);
-
-        if (LocalDateTime.now().isAfter(latestCancelTime)) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Bạn chỉ được hủy lịch trước ít nhất 60 phút"
-            );
-        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime latestCancelTime = booking.getScheduledStartTime().minusMinutes(CANCEL_BUFFER_MINUTES); // Hạn hủy 60 phút
 
         booking.setStatus(BookingStatus.CANCELLED);
         bookingRepository.save(booking);
+
+        // TH 1: Khách hủy sớm trước giờ hẹn ít nhất 60 phút -> HOÀN TIỀN 100%
+        if (now.isBefore(latestCancelTime) || now.isEqual(latestCancelTime)) {
+            processRefund(booking, 1.0); // Hoàn tiền 100%
+        } 
+        // TH 2: Khách hủy trễ dưới 60 phút -> KHÔNG HOÀN TIỀN (Phạt 100% tiền cọc)
+        else {
+            Payment payment = booking.getPayment();
+            if (payment != null && payment.getPaymentStatus() == PaymentStatus.PAID) {
+                payment.setPaymentStatus(PaymentStatus.FAILED); // Đổi trạng thái thanh toán thành thất bại
+                paymentRepository.save(payment);
+            }
+        }
     }
 
     @Transactional
     public BookingResponse checkInByQr(String qrContent) {
         Booking booking = bookingRepository.findByQrContent(qrContent)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Mã QR không hợp lệ"
-                ));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mã QR không hợp lệ"));
 
         if (Boolean.TRUE.equals(booking.getQrUsed())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã QR đã được sử dụng");
+        }
+
+        if (booking.getStatus() != BookingStatus.PENDING && booking.getStatus() != BookingStatus.CONFIRM) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lịch hẹn không ở trạng thái có thể check-in");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime lateDeadline = booking.getScheduledStartTime().plusMinutes(15); // Hạn đi trễ 15 phút
+
+        // Khách đến trễ quá 15 phút -> Hủy lịch, hoàn tiền 80%
+        if (now.isAfter(lateDeadline)) {
+            booking.setStatus(BookingStatus.CANCELLED);
+            booking.setQrUsed(true);
+            bookingRepository.save(booking);
+
+            processRefund(booking, 0.8); // Hoàn tiền 80% (Phạt 20%)
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "QR đã được sử dụng"
+                    "Lịch hẹn đã bị hủy tự động do bạn đến trễ quá 15 phút. Hệ thống đã hoàn lại 80% số tiền vào ví của bạn."
             );
         }
 
+        // Khách đến đúng giờ hoặc trễ dưới 15 phút -> Cho phép check-in vào khoang
         booking.setQrUsed(true);
         booking.setStatus(BookingStatus.ARRIVED);
-        booking.setArrivedAt(LocalDateTime.now());
+        booking.setArrivedAt(now);
+        
+        if (now.isAfter(booking.getScheduledStartTime())) {
+            booking.setLate(true); // Ghi nhận đi trễ dưới 15 phút để làm dữ liệu phân tích sau này
+        }
 
         return bookingMapper.toResponse(bookingRepository.save(booking));
     }
@@ -380,6 +442,7 @@ public class BookingService {
     private void validateVehicleHasNoActiveBooking(Long vehicleId) {
         Collection<BookingStatus> activeStatuses = List.of(
                 BookingStatus.PENDING,
+                BookingStatus.CONFIRM,
                 BookingStatus.ARRIVED,
                 BookingStatus.IN_PROGRESS
         );
@@ -434,6 +497,7 @@ public class BookingService {
                 .findByScheduledStartTimeBetweenOrderByScheduledStartTimeAsc(startOfDay, endOfDay)
                 .stream()
                 .filter(b -> b.getStatus() == BookingStatus.PENDING 
+                          || b.getStatus() == BookingStatus.CONFIRM
                           || b.getStatus() == BookingStatus.ARRIVED 
                           || b.getStatus() == BookingStatus.IN_PROGRESS)
                 .toList();
@@ -479,7 +543,7 @@ public class BookingService {
             BookingStatus nextStatus
     ) {
         boolean valid =
-                (currentStatus == BookingStatus.PENDING
+                ((currentStatus == BookingStatus.PENDING || currentStatus == BookingStatus.CONFIRM)
                         && nextStatus == BookingStatus.ARRIVED)
                         || (currentStatus == BookingStatus.ARRIVED
                         && nextStatus == BookingStatus.IN_PROGRESS)
@@ -545,6 +609,7 @@ public class BookingService {
                 .findByScheduledStartTimeBetweenOrderByScheduledStartTimeAsc(startOfDay, endOfDay)
                 .stream()
                 .filter(b -> b.getStatus() == BookingStatus.PENDING 
+                          || b.getStatus() == BookingStatus.CONFIRM
                           || b.getStatus() == BookingStatus.ARRIVED 
                           || b.getStatus() == BookingStatus.IN_PROGRESS)
                 .toList();
@@ -639,6 +704,108 @@ public class BookingService {
                 .startTime(startTimeStr)
                 .endTime(endTimeStr)
                 .build();
+    }
+
+    @Transactional
+    public void processRefund(Booking booking, double refundRate) {
+        Payment payment = booking.getPayment();
+        if (payment == null || payment.getPaymentStatus() != PaymentStatus.PAID) {
+            return; // Chưa trả tiền thì không cần hoàn
+        }
+
+        if (payment.getPaymentMethod() == PaymentMethod.WALLET || payment.getPaymentMethod() == PaymentMethod.PAYOS) {
+            Long userId = booking.getUser().getId();
+            int originalPrice = payment.getFinalPrice();
+            int refundAmount = (int) Math.round(originalPrice * refundRate);
+
+            // 1. Tìm ví của user
+            Wallet wallet = walletRepository.findByUserId(userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không tìm thấy ví người dùng"));
+
+            // 2. Cộng lại số tiền hoàn
+            wallet.setBalance(wallet.getBalance() + refundAmount);
+            walletRepository.save(wallet);
+
+            // 3. Ghi lịch sử giao dịch ví
+            String note = String.format("Hoàn tiền %.0f%% lịch hẹn %s do %s", 
+                    refundRate * 100, 
+                    booking.getBookingCode(), 
+                    refundRate == 1.0 ? "hủy lịch sớm" : "đến trễ quá 15 phút");
+                    
+            WalletTransaction transaction = WalletTransaction.builder()
+                    .wallet(wallet)
+                    .amount(refundAmount)
+                    .transactionType(WalletTransactionType.REFUND)
+                    .description(note)
+                    .build();
+            walletTransactionRepository.save(transaction);
+
+            // 4. Đổi trạng thái hóa đơn
+            payment.setPaymentStatus(PaymentStatus.REFUNDED);
+            paymentRepository.save(payment);
+        }
+    }
+
+    @Transactional
+    public BookingResponse verifyPayment(Long customerId, Long bookingId) {
+        log.info("Verifying payment for booking ID: {}, customer ID: {}", bookingId, customerId);
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy lịch hẹn"));
+
+        if (!booking.getUser().getId().equals(customerId)) {
+            log.error("Permission denied. Booking belongs to user ID: {}, requested by customer ID: {}", 
+                    booking.getUser().getId(), customerId);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền truy cập lịch hẹn này");
+        }
+
+        if (BookingStatus.CONFIRM.equals(booking.getStatus())) {
+            log.info("Booking ID {} is already CONFIRMED. Skipping verification.", bookingId);
+            return bookingMapper.toResponse(booking);
+        }
+
+        if (booking.getPayment() != null && PaymentMethod.PAYOS.equals(booking.getPayment().getPaymentMethod())) {
+            try {
+                log.info("Fetching payment link info from PayOS for booking ID: {}", bookingId);
+                vn.payos.model.v2.paymentRequests.PaymentLink paymentLink = 
+                        payOS.paymentRequests().get(bookingId);
+                
+                String payosStatus = paymentLink.getStatus().toString();
+                log.info("PayOS returned status: {} for booking ID: {}", payosStatus, bookingId);
+
+                if (vn.payos.model.v2.paymentRequests.PaymentLinkStatus.PAID.equals(paymentLink.getStatus())) {
+                    Payment payment = booking.getPayment();
+                    payment.setPaymentStatus(PaymentStatus.PAID);
+                    payment.setPaidAt(LocalDateTime.now());
+                    paymentRepository.save(payment);
+
+                    booking.setStatus(BookingStatus.CONFIRM);
+                    bookingRepository.save(booking);
+                    log.info("Successfully updated booking ID {} to CONFIRM and payment to PAID", bookingId);
+                } else if (vn.payos.model.v2.paymentRequests.PaymentLinkStatus.CANCELLED.equals(paymentLink.getStatus()) ||
+                           vn.payos.model.v2.paymentRequests.PaymentLinkStatus.EXPIRED.equals(paymentLink.getStatus()) ||
+                           vn.payos.model.v2.paymentRequests.PaymentLinkStatus.FAILED.equals(paymentLink.getStatus())) {
+                    Payment payment = booking.getPayment();
+                    payment.setPaymentStatus(PaymentStatus.FAILED);
+                    paymentRepository.save(payment);
+
+                    booking.setStatus(BookingStatus.CANCELLED);
+                    bookingRepository.save(booking);
+                    log.info("Successfully updated booking ID {} to CANCELLED and payment to FAILED", bookingId);
+                } else {
+                    log.warn("Payment link status is {} - not paid or cancelled yet.", payosStatus);
+                }
+            } catch (Exception e) {
+                log.error("Error communicating with PayOS API for booking ID {}: {}", bookingId, e.getMessage(), e);
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Không thể xác thực trạng thái thanh toán với PayOS: " + e.getMessage()
+                );
+            }
+        } else {
+            log.warn("Booking ID {} payment method is not PAYOS or payment entity is null", bookingId);
+        }
+
+        return bookingMapper.toResponse(booking);
     }
 }
 

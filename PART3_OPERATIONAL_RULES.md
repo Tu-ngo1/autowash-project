@@ -1,13 +1,14 @@
-# HƯỚNG DẪN PHẦN 3: ĐIỀU KHOẢN HỦY LỊCH & ĐI TRỄ (OPERATIONAL & CANCELLATION RULES)
+# HƯỚNG DẪN PHẦN 3: ĐIỀU KHOẢN HỦY LỊCH \& ĐI TRỄ (OPERATIONAL \& CANCELLATION RULES)
 
 Mục tiêu của phần này là lập trình logic bảo vệ lịch trình và doanh thu cửa hàng:
+
 1. Cho phép hủy lịch sớm trước 60 phút và hoàn tiền 100%.
 2. Tự động hủy lịch nếu khách hàng check-in muộn quá 15 phút và hoàn tiền 80% (phạt 20%).
 3. Viết Scheduled Task chạy ngầm tự động quét và giải phóng các slot quá 15 phút chưa check-in.
 
----
+\---
 
-## 1. Hoàn tiền 100% khi khách hàng hủy lịch sớm
+## 1\. Hoàn tiền 100% khi khách hàng hủy lịch sớm
 
 Mở file: [BookingService.java](file:///C:/Users/HP/github/SWP301/AutowashProject/backend/src/main/java/com/autowash/features/booking/service/BookingService.java)
 Cập nhật phương thức `cancelBooking(Long customerId, Long bookingId)`:
@@ -22,7 +23,7 @@ public void cancelBooking(Long customerId, Long bookingId) {
     }
 
     if (booking.getStatus() != BookingStatus.PENDING) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ có thể hủy lịch ở trạng thái PENDING");
+        throw new ResponseStatusException(HttpStatus.BAD\\\_REQUEST, "Chỉ có thể hủy lịch ở trạng thái PENDING");
     }
 
     LocalDateTime now = LocalDateTime.now();
@@ -38,7 +39,7 @@ public void cancelBooking(Long customerId, Long bookingId) {
     // TH 2: Khách hủy trễ dưới 60 phút -> KHÔNG HOÀN TIỀN (Phạt 100% tiền cọc)
     else {
         Payment payment = booking.getPayment();
-        if (payment != null && payment.getPaymentStatus() == PaymentStatus.PAID) {
+        if (payment != null \\\&\\\& payment.getPaymentStatus() == PaymentStatus.PAID) {
             payment.setPaymentStatus(PaymentStatus.FAILED); // Đổi trạng thái thanh toán thành thất bại
             paymentRepository.save(payment);
         }
@@ -46,9 +47,9 @@ public void cancelBooking(Long customerId, Long bookingId) {
 }
 ```
 
----
+\---
 
-## 2. Đi trễ quá 15 phút khi Check-in -> Hủy lịch và hoàn tiền 80%
+## 2\. Đi trễ quá 15 phút khi Check-in -> Hủy lịch và hoàn tiền 80%
 
 Cập nhật phương thức `checkInByQr(String qrContent)` trong [BookingService.java](file:///C:/Users/HP/github/SWP301/AutowashProject/backend/src/main/java/com/autowash/features/booking/service/BookingService.java):
 
@@ -56,14 +57,14 @@ Cập nhật phương thức `checkInByQr(String qrContent)` trong [BookingServi
 @Transactional
 public BookingResponse checkInByQr(String qrContent) {
     Booking booking = bookingRepository.findByQrContent(qrContent)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mã QR không hợp lệ"));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT\\\_FOUND, "Mã QR không hợp lệ"));
 
     if (Boolean.TRUE.equals(booking.getQrUsed())) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã QR đã được sử dụng");
+        throw new ResponseStatusException(HttpStatus.BAD\\\_REQUEST, "Mã QR đã được sử dụng");
     }
 
     if (booking.getStatus() != BookingStatus.PENDING) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lịch hẹn không ở trạng thái có thể check-in");
+        throw new ResponseStatusException(HttpStatus.BAD\\\_REQUEST, "Lịch hẹn không ở trạng thái có thể check-in");
     }
 
     LocalDateTime now = LocalDateTime.now();
@@ -78,7 +79,7 @@ public BookingResponse checkInByQr(String qrContent) {
         processRefund(booking, 0.8); // Hoàn tiền 80% (Phạt 20%)
 
         throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
+                HttpStatus.BAD\\\_REQUEST,
                 "Lịch hẹn đã bị hủy tự động do bạn đến trễ quá 15 phút. Hệ thống đã hoàn lại 80% số tiền vào ví của bạn."
         );
     }
@@ -97,7 +98,9 @@ public BookingResponse checkInByQr(String qrContent) {
 ```
 
 ### Phương thức phụ trợ `processRefund(...)` để hoàn tiền vào ví:
+
 Thêm phương thức này vào `BookingService.java`:
+
 ```java
 @Transactional
 public void processRefund(Booking booking, double refundRate) {
@@ -109,11 +112,11 @@ public void processRefund(Booking booking, double refundRate) {
     if (payment.getPaymentMethod() == PaymentMethod.WALLET || payment.getPaymentMethod() == PaymentMethod.PAYOS) {
         Long userId = booking.getUser().getId();
         int originalPrice = payment.getFinalPrice();
-        int refundAmount = (int) Math.round(originalPrice * refundRate);
+        int refundAmount = (int) Math.round(originalPrice \\\* refundRate);
 
         // 1. Tìm ví của user
         Wallet wallet = walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không tìm thấy ví người dùng"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL\\\_SERVER\\\_ERROR, "Không tìm thấy ví người dùng"));
 
         // 2. Cộng lại số tiền hoàn
         wallet.setBalance(wallet.getBalance().add(BigDecimal.valueOf(refundAmount)));
@@ -121,7 +124,7 @@ public void processRefund(Booking booking, double refundRate) {
 
         // 3. Ghi lịch sử giao dịch ví
         String note = String.format("Hoàn tiền %.0f%% lịch hẹn %s do %s", 
-                refundRate * 100, 
+                refundRate \\\* 100, 
                 booking.getBookingCode(), 
                 refundRate == 1.0 ? "hủy lịch sớm" : "đến trễ quá 15 phút");
                 
@@ -141,9 +144,9 @@ public void processRefund(Booking booking, double refundRate) {
 }
 ```
 
----
+\---
 
-## 3. Scheduled Task chạy ngầm tự động quét và hủy các lịch trễ hẹn
+## 3\. Scheduled Task chạy ngầm tự động quét và hủy các lịch trễ hẹn
 
 Nếu khách đi trễ quá 15 phút nhưng không đến quét mã QR, hệ thống cần tự động quét và hủy lịch để trả slot trống cho người khác.
 
@@ -171,7 +174,7 @@ public class BookingCleanupScheduler {
     private final BookingService bookingService;
 
     // Chạy định kỳ mỗi 5 phút một lần để giải phóng các slot bị "bỏ quên"
-    @Scheduled(cron = "0 */5 * * * *")
+    @Scheduled(cron = "0 \\\*/5 \\\* \\\* \\\* \\\*")
     @Transactional
     public void autoCancelLateBookings() {
         LocalDateTime timeLimit = LocalDateTime.now().minusMinutes(15);
@@ -190,4 +193,6 @@ public class BookingCleanupScheduler {
     }
 }
 ```
+
 *(Lưu ý: Đừng quên thêm `@EnableScheduling` trên class chính `AutowashApplication.java` để kích hoạt tính năng chạy ngầm).*
+

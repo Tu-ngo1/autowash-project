@@ -6,9 +6,9 @@ body:
   type: json
   content: "{\r
 
-    \    \"email\": \"admin@autowash.com\",\r
+    \    \"usernameOrPhone\": \"staff01\",\r
 
-    \    \"password\": \"123456\"\r
+    \    \"password\": \"password123\"\r
 
     }\r
 

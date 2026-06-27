@@ -137,14 +137,14 @@ public class AuthService {
             );
         }
 
-        String emailOrPhone = normalizeRequired(
+        String usernameOrPhone = normalizeRequired(
                 request.getUsernameOrPhone(),
-                "Email or phone is required"
+                "Username or phone is required"
         );
 
-        User user = userRepository.findByEmailOrPhone(
-                emailOrPhone.toLowerCase(),
-                emailOrPhone
+        User user = userRepository.findByUsernameOrPhone(
+                usernameOrPhone,
+                usernameOrPhone
         ).orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.UNAUTHORIZED,
                 "Invalid credentials"

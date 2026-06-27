@@ -63,6 +63,11 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             LocalDateTime to
     );
 
+    List<Booking> findByStatusInAndScheduledStartTimeBefore(
+            Collection<BookingStatus> statuses,
+            LocalDateTime dateTime
+    );
+
     Optional<Booking> findByQrContent(String qrContent);
 
     int countByUserId(Long userId);

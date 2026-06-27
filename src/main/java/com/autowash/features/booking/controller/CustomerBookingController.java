@@ -94,6 +94,12 @@ public class CustomerBookingController {
         User currentUser = userService.getCurrentUserEntity();
         return bookingService.getQrCode(currentUser.getId(), id);
     }
+
+    @PostMapping("/{id}/verify-payment")
+    public BookingResponse verifyPayment(@PathVariable Long id) {
+        User currentUser = userService.getCurrentUserEntity();
+        return bookingService.verifyPayment(currentUser.getId(), id);
+    }
 }
 
 
