@@ -248,6 +248,7 @@ public class BookingService {
 
             paymentStatus = PaymentStatus.PAID;
             paidAt = LocalDateTime.now();
+            savedBooking.setStatus(BookingStatus.CONFIRM);
 
             WalletTransaction walletTx = WalletTransaction.builder()
                     .wallet(wallet)
@@ -560,7 +561,8 @@ public class BookingService {
             BookingStatus nextStatus
     ) {
         boolean valid =
-                ((currentStatus == BookingStatus.PENDING || currentStatus == BookingStatus.CONFIRM)
+                (currentStatus == BookingStatus.PENDING && nextStatus == BookingStatus.CONFIRM)
+                        || ((currentStatus == BookingStatus.PENDING || currentStatus == BookingStatus.CONFIRM)
                         && nextStatus == BookingStatus.ARRIVED)
                         || (currentStatus == BookingStatus.ARRIVED
                         && nextStatus == BookingStatus.IN_PROGRESS)
@@ -824,6 +826,8 @@ public class BookingService {
 
         return bookingMapper.toResponse(booking);
     }
+
+
 }
 
 
