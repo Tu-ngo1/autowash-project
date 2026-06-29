@@ -35,6 +35,10 @@ public class BookingResponse {
     private Integer finalPrice;
     private Integer bayNumber;
     private Boolean late;
+    private Boolean qrUsed;
+    private LocalDateTime arrivedAt;
+    private LocalDateTime washStartedAt;
+    private LocalDateTime completedAt;
     private String customerNote;
     private String tierLevel;
     private Integer discount;

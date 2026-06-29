@@ -196,6 +196,14 @@ public class BookingService {
             );
         }
 
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Chỉ có thể check-in booking ở trạng thái PENDING. Trạng thái hiện tại: "
+                            + booking.getStatus()
+            );
+        }
+
         booking.setQrUsed(true);
         booking.setStatus(BookingStatus.ARRIVED);
         booking.setArrivedAt(LocalDateTime.now());
@@ -374,5 +382,7 @@ public class BookingService {
         // 3. Nếu số xe < số khoang rửa và thời gian đặt lịch thỏa mãn (ví dụ: > hiện tại + 30 phút), đánh dấu ca đó khả dụng.
         return new ArrayList<>();
     }
+
+
 }
 
