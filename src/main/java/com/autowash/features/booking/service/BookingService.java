@@ -1,5 +1,6 @@
 package com.autowash.features.booking.service;
 
+import com.autowash.features.user.service.UserService;
 import com.autowash.features.washservice.service.WashService;
 import com.autowash.features.booking.dto.request.CreateBookingRequest;
 import com.autowash.features.booking.dto.request.UpdateBookingStatusRequest;
@@ -77,6 +78,7 @@ public class BookingService {
     private final WalletTransactionRepository walletTransactionRepository;
     private final QrCodeService qrCodeService;
     private final PayOS payOS;
+    private final UserService userService;
 
     @Value("${payos.return-url}")
     private String returnUrl;
@@ -306,6 +308,13 @@ public class BookingService {
     public BookingResponse getBookingById(Long bookingId) {
         return bookingMapper.toResponse(findBookingOrThrow(bookingId));
     }
+    public BookingResponse getBookingByIdAndUserId(Long bookingId, Long userId) {
+        Booking booking = findBookingOrThrow(bookingId);
+        if(!booking.getUser().getId().equals(userId)){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem booking này");
+        }
+        return bookingMapper.toResponse(booking);
+    }
 
     @Transactional
     public void cancelBooking(Long customerId, Long bookingId) {
@@ -341,6 +350,7 @@ public class BookingService {
 
     @Transactional
     public BookingResponse checkInByQr(String qrContent) {
+        User currentStaff = userService.getCurrentUserEntity();
         Booking booking = bookingRepository.findByQrContent(qrContent)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mã QR không hợp lệ"));
 
@@ -373,7 +383,7 @@ public class BookingService {
         booking.setQrUsed(true);
         booking.setStatus(BookingStatus.ARRIVED);
         booking.setArrivedAt(now);
-        
+        booking.setStaff(currentStaff);
         if (now.isAfter(booking.getScheduledStartTime())) {
             booking.setLate(true); // Ghi nhận đi trễ dưới 15 phút để làm dữ liệu phân tích sau này
         }
@@ -387,10 +397,17 @@ public class BookingService {
             UpdateBookingStatusRequest request
     ) {
         Booking booking = findBookingOrThrow(bookingId);
+        User currentStaff = userService.getCurrentUserEntity();
+
+
+        // KIỂM TRA BẢO MẬT:
+        // Nếu lịch đã có nhân viên check-in, chỉ cho phép CHÍNH NHÂN VIÊN ĐÓ cập nhật trạng thái tiếp theo (IN_PROGRESS, WASHED...)
+        if(booking.getStaff() != null && !booking.getStaff().getId().equals(currentStaff.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Lịch hẹn này đã được tiếp nhận và check-in bởi nhân viên khác trong ca trực của họ.");
+        }
 
         BookingStatus currentStatus = booking.getStatus();
         BookingStatus nextStatus = request.getStatus();
-
         validateStatusFlow(currentStatus, nextStatus);
 
         booking.setStatus(nextStatus);

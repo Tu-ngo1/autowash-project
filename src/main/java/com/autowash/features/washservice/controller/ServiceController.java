@@ -1,5 +1,7 @@
 package com.autowash.features.washservice.controller;
 
+import com.autowash.features.user.entity.User;
+import com.autowash.features.user.service.UserService;
 import com.autowash.features.washservice.dto.response.ServiceResponse;
 import com.autowash.features.washservice.dto.response.AvailableServiceResponse;
 import com.autowash.features.washservice.service.WashService;
@@ -14,6 +16,7 @@ import java.util.List;
 public class ServiceController {
 
     private final WashService washService;
+    private final UserService userService;
 
     // Customer lấy danh sách dịch vụ đang hoạt động
     @GetMapping
@@ -33,11 +36,11 @@ public class ServiceController {
         return washService.getServiceById(id);
     }
 
-    @GetMapping("/customer/{customerId}/cars/{carId}/services")
+    @GetMapping("/customer/cars/{carId}/services")
     public List<AvailableServiceResponse> getServicesForCar(
-            @PathVariable Long customerId,
             @PathVariable Long carId
     ) {
-        return washService.getServicesForCustomerCar(customerId, carId);
+        User currentUser = userService.getCurrentUserEntity();
+        return washService.getServicesForCustomerCar(currentUser.getId(), carId);
     }
 }
