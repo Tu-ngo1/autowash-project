@@ -1,7 +1,10 @@
 package com.autowash.features.booking.service;
 
 import com.autowash.features.booking.dto.request.UpdateDailyConfigRequest;
+import com.autowash.features.booking.entity.Booking;
 import com.autowash.features.booking.entity.DailyOperationsConfig;
+import com.autowash.features.booking.enums.BookingStatus;
+import com.autowash.features.booking.repository.BookingRepository;
 import com.autowash.features.booking.repository.DailyOperationsConfigRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -10,13 +13,18 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class OperationsConfigService {
 
     private final DailyOperationsConfigRepository configRepository;
+    private final BookingRepository bookingRepository;
+    private final BookingService bookingService;
     private static final int SLOT_DURATION_MINUTES = 90; // Mỗi slot kéo dài 90 phút
 
     @Transactional
@@ -44,14 +52,55 @@ public class OperationsConfigService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số lượng ca quá nhiều vượt quá giới hạn ngày!");
         }
 
-        // 4. Tìm cấu hình hiện tại hoặc tạo mới bằng Pessimistic Lock để chống tranh chấp đồng thời
+        // 4. Tìm các booking đang hoạt động của ngày mai và kiểm tra xem có bị xung đột không
+        LocalDateTime startOfDay = tomorrow.atStartOfDay();
+        LocalDateTime endOfDay = tomorrow.atTime(LocalTime.MAX);
+        List<Booking> activeBookings = bookingRepository
+                .findByScheduledStartTimeBetweenOrderByScheduledStartTimeAsc(startOfDay, endOfDay)
+                .stream()
+                .filter(b -> b.getStatus() == BookingStatus.PENDING 
+                          || b.getStatus() == BookingStatus.CONFIRM
+                          || b.getStatus() == BookingStatus.ARRIVED 
+                          || b.getStatus() == BookingStatus.IN_PROGRESS)
+                .toList();
+
+        List<Booking> affectedBookings = new ArrayList<>();
+        List<String> affectedBookingCodes = new ArrayList<>();
+        for (Booking booking : activeBookings) {
+            LocalTime bookingStart = booking.getScheduledStartTime().toLocalTime();
+            LocalTime bookingEnd = booking.getExpectedEndTime().toLocalTime();
+
+            if (bookingStart.isBefore(request.getOpenTime()) || bookingEnd.isAfter(closeTime)) {
+                affectedBookings.add(booking);
+                affectedBookingCodes.add(booking.getBookingCode());
+            }
+        }
+
+        if (!affectedBookings.isEmpty()) {
+            if (request.getForceSave() == null || !request.getForceSave()) {
+                // Hướng giải quyết 3: Trả về mã lỗi 409 CONFLICT kèm danh sách đơn bị ảnh hưởng để FE hiển thị cảnh báo
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "CONFLICT:" + String.join(",", affectedBookingCodes)
+                );
+            } else {
+                // forceSave = true -> Tiến hành hủy các lịch hẹn này và hoàn tiền 100%
+                for (Booking booking : affectedBookings) {
+                    booking.setStatus(BookingStatus.CANCELLED);
+                    bookingRepository.save(booking);
+                    bookingService.processRefund(booking, 1.0); // Hoàn tiền 100%
+                }
+            }
+        }
+
+        // 5. Tìm cấu hình hiện tại hoặc tạo mới bằng Pessimistic Lock để chống tranh chấp đồng thời
         DailyOperationsConfig config = configRepository.findByConfigDateWithLock(tomorrow)
                 .orElse(DailyOperationsConfig.builder()
                         .configDate(tomorrow)
                         .isActive(true)
                         .build());
 
-        // 5. Cập nhật các thông số mới
+        // 6. Cập nhật các thông số mới
         config.setOpenTime(request.getOpenTime());
         config.setCloseTime(closeTime);
         config.setBayCount(request.getBayCount());

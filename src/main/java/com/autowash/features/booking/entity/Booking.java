@@ -105,6 +105,10 @@ public class Booking {
     @OneToOne(mappedBy = "booking")
     private Payment payment;
 
+    @ManyToOne
+    @JoinColumn(name = "Staff_id")
+    private User staff;
+
     @Column(name = "Created_at")
     private LocalDateTime createdAt;
 

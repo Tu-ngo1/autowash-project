@@ -20,27 +20,23 @@ public class OtpController {
     private final UserService userService;
 
     @PostMapping("/create")
-    public String createOtp(@RequestBody CreateOtpRequest request) {
+    public String createOtp() {
         User user = userService.getCurrentUserEntity();
-
-        OtpToken otpToken = otpService.createOtp(user, request.getEmail());
-
-        return "OTP created successfully. OTP code: " + otpToken.getOtpCode();
+        OtpToken otpToken = otpService.createOtp(user, user.getEmail());
+        return "OTP created successfully.";
     }
 
     @PostMapping("/resend")
-    public String resendOtp(@RequestBody CreateOtpRequest request) {
+    public String resendOtp() {
         User user = userService.getCurrentUserEntity();
-
-        OtpToken otpToken = otpService.resendOtp(user, request.getEmail());
-
-        return "OTP resent successfully. OTP code: " + otpToken.getOtpCode();
+        OtpToken otpToken = otpService.resendOtp(user, user.getEmail());
+        return "OTP resent successfully. OTP code: ";
     }
 
     @PostMapping("/verify")
     public String verifyOtp(@RequestBody VerifyOtpRequest request) {
-        otpService.verifyOtp(request.getEmail(), request.getOtpCode());
-
+        User user = userService.getCurrentUserEntity();
+        otpService.verifyOtp(user.getEmail(), request.getOtpCode());
         return "OTP verified successfully";
     }
 }

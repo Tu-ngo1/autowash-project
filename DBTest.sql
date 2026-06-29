@@ -1,4 +1,4 @@
-﻿-- ============================================================================
+-- ============================================================================
 -- SQL SCRIPT: RE-CREATE AND SEED TEST DATA FOR AUTOWASH DATABASE
 -- Description:
 --   1. Safely deletes existing data in constraint-respecting order.
@@ -202,18 +202,25 @@ BEGIN TRY
     INSERT INTO CUSTOMER_VOUCHERS (user_id, promotion_id, voucher_code, status, redeemed_at, used_at, expired_at) VALUES (@u_cust4, @p_platinum, 'PROMOPLATINUM_001', 'AVAILABLE', DATEADD(day, -1, GETDATE()), NULL, DATEADD(day, 29, GETDATE()));
     SET @cv_platinum = SCOPE_IDENTITY();
 
-    -- 4.10. BOOKINGS
-    INSERT INTO BOOKINGS (booking_code, user_id, vehicle_id, scheduled_start_time, expected_end_time, status, bay_number, is_late, customer_note, Total_price, Qr_content, Qr_used, arrived_at, wash_started_at, completed_at, created_at, updated_at)
-    VALUES ('BK001', @u_cust1, @car_vios, DATEADD(day, 2, GETDATE()), DATEADD(minute, 30, DATEADD(day, 2, GETDATE())), 'PENDING', NULL, 0, N'Rửa sạch mâm xe giúp tôi.', 100000, 'BK001_QR_CODE', 0, NULL, NULL, NULL, GETDATE(), GETDATE());
+    -- 4.10. BOOKINGS (Thêm cột Staff_id để hỗ trợ phân quyền kiểm tra nhân viên phụ trách ca trực)
+    -- BK001: PENDING (Chưa check-in, Staff_id = NULL)
+    INSERT INTO BOOKINGS (booking_code, user_id, vehicle_id, scheduled_start_time, expected_end_time, status, bay_number, is_late, customer_note, Total_price, Qr_content, Qr_used, arrived_at, wash_started_at, completed_at, Staff_id, created_at, updated_at)
+    VALUES ('BK001', @u_cust1, @car_vios, DATEADD(day, 2, GETDATE()), DATEADD(minute, 30, DATEADD(day, 2, GETDATE())), 'PENDING', NULL, 0, N'Rửa sạch mâm xe giúp tôi.', 100000, 'BK001_QR_CODE', 0, NULL, NULL, NULL, NULL, GETDATE(), GETDATE());
     SET @bk1 = SCOPE_IDENTITY();
-    INSERT INTO BOOKINGS (booking_code, user_id, vehicle_id, scheduled_start_time, expected_end_time, status, bay_number, is_late, customer_note, Total_price, Qr_content, Qr_used, arrived_at, wash_started_at, completed_at, created_at, updated_at)
-    VALUES ('BK002', @u_cust2, @car_civic, DATEADD(day, 1, GETDATE()), DATEADD(minute, 50, DATEADD(day, 1, GETDATE())), 'ARRIVED', 1, 0, N'Hút bụi kỹ sàn xe.', 220000, 'BK002_QR_CODE', 0, NULL, NULL, NULL, GETDATE(), GETDATE());
+
+    -- BK002: ARRIVED (Đã check-in bởi Staff 1, Staff_id = @u_staff1)
+    INSERT INTO BOOKINGS (booking_code, user_id, vehicle_id, scheduled_start_time, expected_end_time, status, bay_number, is_late, customer_note, Total_price, Qr_content, Qr_used, arrived_at, wash_started_at, completed_at, Staff_id, created_at, updated_at)
+    VALUES ('BK002', @u_cust2, @car_civic, DATEADD(day, 1, GETDATE()), DATEADD(minute, 50, DATEADD(day, 1, GETDATE())), 'ARRIVED', 1, 0, N'Hút bụi kỹ sàn xe.', 220000, 'BK002_QR_CODE', 0, NULL, NULL, NULL, @u_staff1, GETDATE(), GETDATE());
     SET @bk2 = SCOPE_IDENTITY();
-    INSERT INTO BOOKINGS (booking_code, user_id, vehicle_id, scheduled_start_time, expected_end_time, status, bay_number, is_late, customer_note, Total_price, Qr_content, Qr_used, arrived_at, wash_started_at, completed_at, created_at, updated_at)
-    VALUES ('BK003', @u_cust3, @car_santafe, DATEADD(day, -2, GETDATE()), DATEADD(minute, 80, DATEADD(day, -2, GETDATE())), 'COMPLETED', 2, 0, NULL, 500000, 'BK003_QR_CODE', 1, DATEADD(minute, -5, DATEADD(day, -2, GETDATE())), DATEADD(day, -2, GETDATE()), DATEADD(minute, 80, DATEADD(day, -2, GETDATE())), DATEADD(day, -2, GETDATE()), DATEADD(day, -2, GETDATE()));
+
+    -- BK003: COMPLETED (Đã hoàn thành, Check-in bởi Staff 2, Staff_id = @u_staff2)
+    INSERT INTO BOOKINGS (booking_code, user_id, vehicle_id, scheduled_start_time, expected_end_time, status, bay_number, is_late, customer_note, Total_price, Qr_content, Qr_used, arrived_at, wash_started_at, completed_at, Staff_id, created_at, updated_at)
+    VALUES ('BK003', @u_cust3, @car_santafe, DATEADD(day, -2, GETDATE()), DATEADD(minute, 80, DATEADD(day, -2, GETDATE())), 'COMPLETED', 2, 0, NULL, 500000, 'BK003_QR_CODE', 1, DATEADD(minute, -5, DATEADD(day, -2, GETDATE())), DATEADD(day, -2, GETDATE()), DATEADD(minute, 80, DATEADD(day, -2, GETDATE())), @u_staff2, DATEADD(day, -2, GETDATE()), DATEADD(day, -2, GETDATE()));
     SET @bk3 = SCOPE_IDENTITY();
-    INSERT INTO BOOKINGS (booking_code, user_id, vehicle_id, scheduled_start_time, expected_end_time, status, bay_number, is_late, customer_note, Total_price, Qr_content, Qr_used, arrived_at, wash_started_at, completed_at, created_at, updated_at)
-    VALUES ('BK004', @u_cust4, @car_ranger, DATEADD(day, -3, GETDATE()), DATEADD(minute, 55, DATEADD(day, -3, GETDATE())), 'COMPLETED', 1, 0, NULL, 260000, 'BK004_QR_CODE', 1, DATEADD(minute, -10, DATEADD(day, -3, GETDATE())), DATEADD(day, -3, GETDATE()), DATEADD(minute, 55, DATEADD(day, -3, GETDATE())), DATEADD(day, -3, GETDATE()), DATEADD(day, -3, GETDATE()));
+
+    -- BK004: COMPLETED (Đã hoàn thành, Check-in bởi Staff 1, Staff_id = @u_staff1)
+    INSERT INTO BOOKINGS (booking_code, user_id, vehicle_id, scheduled_start_time, expected_end_time, status, bay_number, is_late, customer_note, Total_price, Qr_content, Qr_used, arrived_at, wash_started_at, completed_at, Staff_id, created_at, updated_at)
+    VALUES ('BK004', @u_cust4, @car_ranger, DATEADD(day, -3, GETDATE()), DATEADD(minute, 55, DATEADD(day, -3, GETDATE())), 'COMPLETED', 1, 0, NULL, 260000, 'BK004_QR_CODE', 1, DATEADD(minute, -10, DATEADD(day, -3, GETDATE())), DATEADD(day, -3, GETDATE()), DATEADD(minute, 55, DATEADD(day, -3, GETDATE())), @u_staff1, DATEADD(day, -3, GETDATE()), DATEADD(day, -3, GETDATE()));
     SET @bk4 = SCOPE_IDENTITY();
 
     -- 4.11. BOOKING_DETAILS (Bỏ cột service_id)
@@ -238,7 +245,7 @@ BEGIN TRY
 
     -- COMMIT TRANSACTION IF EVERYTHING OK
     COMMIT TRANSACTION;
-    PRINT 'Database re-created and seeded successfully!';
+    PRINT 'Database re-created and seeded successfully with updated schema mapping!';
 
 END TRY
 BEGIN CATCH

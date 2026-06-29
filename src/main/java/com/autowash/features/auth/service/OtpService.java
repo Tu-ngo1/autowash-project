@@ -44,7 +44,7 @@ public class OtpService {
                 .createdAt(LocalDateTime.now())
                 .expiredAt(LocalDateTime.now().plusMinutes(5))
                 .build();
-
+        emailService.sendRegistrationOtp(user.getEmail(), otpCode);
         return otpTokenRepository.save(otpToken);
     }
 
@@ -79,6 +79,7 @@ public class OtpService {
                 .expiredAt(LocalDateTime.now().plusMinutes(5))
                 .build();
 
+        emailService.sendRegistrationOtp(user.getEmail(), otpCode);
         return otpTokenRepository.save(newOtp);
     }
 

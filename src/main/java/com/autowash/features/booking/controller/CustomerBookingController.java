@@ -9,6 +9,7 @@ import com.autowash.features.booking.dto.response.QrCodeResponse;
 import com.autowash.features.user.entity.User;
 import com.autowash.features.booking.service.BookingService;
 import com.autowash.features.user.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -55,7 +56,7 @@ public class CustomerBookingController {
     }
 
     @PostMapping
-    public BookingResponse createBooking(@RequestBody CreateBookingRequest request) {
+    public BookingResponse createBooking(@Valid @RequestBody CreateBookingRequest request) {
         User currentUser = userService.getCurrentUserEntity();
         return bookingService.createBooking(currentUser.getId(), request);
     }
@@ -69,16 +70,7 @@ public class CustomerBookingController {
     @GetMapping("/{id}")
     public BookingResponse getBookingById(@PathVariable Long id) {
         User currentUser = userService.getCurrentUserEntity();
-        BookingResponse booking = bookingService.getBookingById(id);
-        
-        if (!booking.getCustomerPhone().equals(currentUser.getPhone())) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Bạn không có quyền xem thông tin booking này"
-            );
-        }
-        
-        return booking;
+        return bookingService.getBookingByIdAndUserId(id, currentUser.getId());
     }
 
     @PostMapping("/{id}/cancel")
@@ -92,6 +84,12 @@ public class CustomerBookingController {
     public QrCodeResponse getQrCode(@PathVariable Long id) {
         User currentUser = userService.getCurrentUserEntity();
         return bookingService.getQrCode(currentUser.getId(), id);
+    }
+
+    @PostMapping("/{id}/verify-payment")
+    public BookingResponse verifyPayment(@PathVariable Long id) {
+        User currentUser = userService.getCurrentUserEntity();
+        return bookingService.verifyPayment(currentUser.getId(), id);
     }
 }
 
