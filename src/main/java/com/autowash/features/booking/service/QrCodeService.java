@@ -83,10 +83,11 @@ public class QrCodeService {
             );
         }
 
-        if (booking.getStatus() != BookingStatus.PENDING) {
+        if (booking.getStatus() != BookingStatus.CONFIRM) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Booking không ở trạng thái có thể check-in"
+                    "Chỉ có thể check-in booking ở trạng thái CONFIRM. Trạng thái hiện tại: "
+                            + booking.getStatus()
             );
         }
 

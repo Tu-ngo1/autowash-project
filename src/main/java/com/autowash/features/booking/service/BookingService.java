@@ -196,10 +196,10 @@ public class BookingService {
             );
         }
 
-        if (booking.getStatus() != BookingStatus.PENDING) {
+        if (booking.getStatus() != BookingStatus.CONFIRM) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Chỉ có thể check-in booking ở trạng thái PENDING. Trạng thái hiện tại: "
+                    "Chỉ có thể check-in booking ở trạng thái CONFIRM. Trạng thái hiện tại: "
                             + booking.getStatus()
             );
         }
@@ -340,6 +340,8 @@ public class BookingService {
     ) {
         boolean valid =
                 (currentStatus == BookingStatus.PENDING
+                        && nextStatus == BookingStatus.CONFIRM)
+                        || (currentStatus == BookingStatus.CONFIRM
                         && nextStatus == BookingStatus.ARRIVED)
                         || (currentStatus == BookingStatus.ARRIVED
                         && nextStatus == BookingStatus.IN_PROGRESS)
