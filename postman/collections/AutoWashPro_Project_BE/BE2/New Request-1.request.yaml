@@ -1,0 +1,9 @@
+$kind: http-request
+name: New Request
+url: "{{UrlStaff}}/bookings/check-in"
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0e66}}"
+order: 3354371271486918

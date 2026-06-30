@@ -23,12 +23,22 @@ import com.autowash.features.car.repository.CarRepository;
 import com.autowash.features.user.entity.CustomerProfile;
 import com.autowash.features.user.entity.User;
 import com.autowash.features.user.repository.UserRepository;
+import com.autowash.features.booking.dto.request.WalkInBookingRequest;
+import com.autowash.features.car.entity.VehicleModel;
+import com.autowash.features.car.repository.VehicleModelRepository;
+import com.autowash.features.user.entity.TierConfig;
+import com.autowash.features.user.enums.TierLevel;
+import com.autowash.features.user.enums.UserStatus;
+import com.autowash.features.user.enums.Role;
+import com.autowash.features.user.repository.CustomerProfileRepository;
+import com.autowash.features.user.repository.TierConfigRepository;
 import com.autowash.features.washservice.entity.ServicePrice;
 import com.autowash.features.washservice.repository.ServicePriceRepository;
 import com.autowash.features.booking.entity.DailyOperationsConfig;
 import com.autowash.features.booking.repository.DailyOperationsConfigRepository;
 import com.autowash.features.booking.dto.response.AvailableSlotResponse;
 import com.autowash.features.booking.dto.response.BusinessHoursResponse;
+import com.autowash.features.booking.dto.response.WashBayResponse;
 
 import com.autowash.features.promotion.entity.CustomerVoucher;
 import com.autowash.features.promotion.entity.Promotion;
@@ -79,6 +89,9 @@ public class BookingService {
     private final QrCodeService qrCodeService;
     private final PayOS payOS;
     private final UserService userService;
+    private final VehicleModelRepository vehicleModelRepository;
+    private final CustomerProfileRepository customerProfileRepository;
+    private final TierConfigRepository tierConfigRepository;
 
     @Value("${payos.return-url}")
     private String returnUrl;
@@ -299,6 +312,136 @@ public class BookingService {
         return response;
     }
 
+    @Transactional
+    public BookingResponse createWalkInBooking(WalkInBookingRequest request) {
+        User currentStaff = userService.getCurrentUserEntity();
+        
+        // 1. Xử lý tài khoản khách hàng
+        User customer = null;
+        if (request.getCustomerPhone() != null && !request.getCustomerPhone().trim().isEmpty()) {
+            customer = userRepository.findByPhone(request.getCustomerPhone().trim()).orElse(null);
+        }
+        
+        if (customer == null) {
+            // Sử dụng tài khoản "Khách vãng lai mặc định" (walkin@autowash.com) hoặc tạo mới
+            customer = userRepository.findByEmail("walkin@autowash.com").orElse(null);
+            if (customer == null) {
+                User newUser = User.builder()
+                        .fullName("Khách vãng lai")
+                        .email("walkin@autowash.com")
+                        .phone("0000000000")
+                        .username("walkin_customer")
+                        .password("walkin_placeholder_password")
+                        .role(Role.CUSTOMER)
+                        .status(UserStatus.ACTIVE)
+                        .build();
+                User savedUser = userRepository.save(newUser);
+                
+                TierConfig memberTier = tierConfigRepository.findById(TierLevel.MEMBER).orElse(null);
+                CustomerProfile profile = CustomerProfile.builder()
+                        .user(savedUser)
+                        .tierConfig(memberTier)
+                        .rewardPoints(0)
+                        .tierPoints(0)
+                        .build();
+                customerProfileRepository.save(profile);
+                
+                customer = userRepository.findById(savedUser.getId()).orElse(savedUser);
+            }
+        }
+        
+        // 2. Xử lý xe (Car)
+        String licensePlate = request.getLicensePlate().trim();
+        Car car = carRepository.findByLicensePlate(licensePlate).orElse(null);
+        if (car == null) {
+            VehicleModel vehicleModel = vehicleModelRepository.findById(request.getVehicleModelId())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST, "Không tìm thấy mẫu xe có ID: " + request.getVehicleModelId()
+                    ));
+            car = Car.builder()
+                    .user(customer)
+                    .licensePlate(licensePlate)
+                    .vehicleModel(vehicleModel)
+                    .status(CarStatus.ACTIVE)
+                    .build();
+            car = carRepository.save(car);
+        }
+        
+        // 3. Tính toán chi phí
+        List<ServicePrice> selectedPrices = request.getServiceIds().stream()
+                .map(id -> servicePriceRepository.findById(id)
+                        .orElseThrow(() -> new ResponseStatusException(
+                                HttpStatus.NOT_FOUND, "Không tìm thấy giá dịch vụ ID: " + id
+                        )))
+                .toList();
+
+        int subTotal = selectedPrices.stream()
+                .mapToInt(ServicePrice::getPrice)
+                .sum();
+                
+        // Áp dụng chiết khấu hạng thành viên (nếu có)
+        int tierDiscount = 0;
+        CustomerProfile profile = customer.getCustomerProfile();
+        if (profile != null && profile.getTierConfig() != null && profile.getTierConfig().getAutoDiscountPercent() != null) {
+            double discountPercent = profile.getTierConfig().getAutoDiscountPercent().doubleValue();
+            tierDiscount = (int) Math.round((subTotal * discountPercent) / 100);
+        }
+        
+        int finalPrice = Math.max(subTotal - tierDiscount, 0);
+        
+        // 4. Tạo Booking & Payment
+        String bookingCode = generateBookingCode();
+        String qrContent = qrCodeService.generateQrContent(bookingCode);
+        LocalDateTime expectedEndTime = request.getScheduledStartTime().plusMinutes(
+                selectedPrices.stream().mapToInt(ServicePrice::getDurationMinutes).sum()
+        );
+        
+        Booking booking = Booking.builder()
+                .bookingCode(bookingCode)
+                .user(customer)
+                .vehicle(car)
+                .scheduledStartTime(request.getScheduledStartTime())
+                .expectedEndTime(expectedEndTime)
+                .status(BookingStatus.ARRIVED) // Đặt trực tiếp thành ARRIVED vì tiếp nhận trực tiếp
+                .customerNote(request.getCustomerNote())
+                .totalPrice(subTotal)
+                .qrContent(qrContent)
+                .qrUsed(true) // Đã quét check-in trực tiếp
+                .arrivedAt(LocalDateTime.now())
+                .staff(currentStaff) // Gán nhân viên tạo lịch là nhân viên phụ trách chính
+                .build();
+                
+        Booking savedBooking = bookingRepository.save(booking);
+        
+        // Tạo các BookingDetail
+        List<BookingDetail> details = selectedPrices.stream()
+                .map(price -> BookingDetail.builder()
+                        .booking(savedBooking)
+                        .servicePrice(price)
+                        .actualPrice(price.getPrice())
+                        .actualDurationMinutes(price.getDurationMinutes())
+                        .build())
+                .toList();
+
+        bookingDetailRepository.saveAll(details);
+        savedBooking.setBookingDetails(details);
+        
+        Payment payment = Payment.builder()
+                .booking(savedBooking)
+                .paymentMethod(request.getPaymentMethod())
+                .subTotal(subTotal)
+                .discountAmount(tierDiscount)
+                .finalPrice(finalPrice)
+                .paymentStatus(PaymentStatus.PENDING) // Walk-in booking starts as PENDING payment
+                .paidAt(null)
+                .build();
+
+        paymentRepository.save(payment);
+        savedBooking.setPayment(payment);
+        
+        return bookingMapper.toResponse(savedBooking);
+    }
+
     public List<BookingResponse> getMyBookings(Long customerId) {
         return bookingRepository.findByUserIdOrderByScheduledStartTimeDesc(customerId)
                 .stream()
@@ -352,8 +495,23 @@ public class BookingService {
     @Transactional
     public BookingResponse checkInByQr(String qrContent) {
         User currentStaff = userService.getCurrentUserEntity();
-        Booking booking = bookingRepository.findByQrContent(qrContent)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mã QR không hợp lệ"));
+        String normalized = qrContent == null ? "" : qrContent.trim();
+
+        if (!normalized.startsWith("AUTOWASH|BOOKING|")) {
+            log.warn("QR validation failed. Invalid prefix. Received='{}' (len={})", 
+                     normalized, normalized.length());
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, 
+                    "QR code không đúng định dạng hệ thống (yêu cầu prefix AUTOWASH|BOOKING|)"
+            );
+        }
+
+        Booking booking = bookingRepository.findByQrContent(normalized)
+                .orElseThrow(() -> {
+                    log.warn("QR lookup failed. Received='{}' (len={})", 
+                             normalized, normalized.length());
+                    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Mã QR không hợp lệ");
+                });
 
         if (Boolean.TRUE.equals(booking.getQrUsed())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã QR đã được sử dụng");
@@ -421,8 +579,16 @@ public class BookingService {
             booking.setWashStartedAt(LocalDateTime.now());
         }
 
-        if (nextStatus == BookingStatus.WASHED) {
-            booking.setCompletedAt(LocalDateTime.now());
+        if (nextStatus == BookingStatus.WASHED || nextStatus == BookingStatus.COMPLETED) {
+            if (booking.getCompletedAt() == null) {
+                booking.setCompletedAt(LocalDateTime.now());
+            }
+            Payment payment = booking.getPayment();
+            if (payment != null && payment.getPaymentStatus() == PaymentStatus.PENDING) {
+                payment.setPaymentStatus(PaymentStatus.PAID);
+                payment.setPaidAt(LocalDateTime.now());
+                paymentRepository.save(payment);
+            }
         }
 
         return bookingMapper.toResponse(bookingRepository.save(booking));
@@ -567,7 +733,9 @@ public class BookingService {
                         || (currentStatus == BookingStatus.ARRIVED
                         && nextStatus == BookingStatus.IN_PROGRESS)
                         || (currentStatus == BookingStatus.IN_PROGRESS
-                        && nextStatus == BookingStatus.WASHED);
+                        && (nextStatus == BookingStatus.WASHED || nextStatus == BookingStatus.COMPLETED))
+                        || (currentStatus == BookingStatus.WASHED
+                        && nextStatus == BookingStatus.COMPLETED);
 
         if (!valid) {
             throw new ResponseStatusException(
@@ -827,7 +995,185 @@ public class BookingService {
         return bookingMapper.toResponse(booking);
     }
 
+    public List<BookingResponse> getPendingBookingsForToday() {
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
 
+        return bookingRepository.findByScheduledStartTimeBetweenOrderByScheduledStartTimeAsc(startOfDay, endOfDay)
+                .stream()
+                .filter(b -> b.getStatus() == BookingStatus.PENDING || b.getStatus() == BookingStatus.CONFIRM)
+                .map(bookingMapper::toResponse)
+                .toList();
+    }
+
+    @Transactional
+    public BookingResponse confirmPendingBooking(Long bookingId) {
+        User currentStaff = userService.getCurrentUserEntity();
+        Booking booking = findBookingOrThrow(bookingId);
+
+        if (booking.getStatus() != BookingStatus.PENDING && booking.getStatus() != BookingStatus.CONFIRM) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lịch hẹn không ở trạng thái có thể check-in");
+        }
+
+        booking.setQrUsed(true);
+        booking.setStatus(BookingStatus.ARRIVED);
+        booking.setArrivedAt(LocalDateTime.now());
+        booking.setStaff(currentStaff);
+
+        return bookingMapper.toResponse(bookingRepository.save(booking));
+    }
+
+    public List<BookingResponse> getQueueBookingsForToday() {
+        return bookingRepository.findBookingsByStatus(BookingStatus.ARRIVED)
+                .stream()
+                .filter(b -> b.getBayNumber() == null) // Filter out assigned bookings
+                .map(bookingMapper::toResponse)
+                .toList();
+    }
+
+    @Transactional
+    public List<WashBayResponse> getWashingBaysStatus() {
+        LocalDate today = LocalDate.now();
+        DailyOperationsConfig config = dailyOperationsConfigRepository.findByConfigDate(today)
+                .orElse(DailyOperationsConfig.builder()
+                        .configDate(today)
+                        .openTime(LocalTime.of(8, 0))
+                        .closeTime(LocalTime.of(18, 0))
+                        .bayCount(2)
+                        .isActive(true)
+                        .build());
+
+        int bayCount = config.getBayCount() != null ? config.getBayCount() : 2;
+
+        List<Booking> activeBookings = bookingRepository.findBookingsByStatus(BookingStatus.IN_PROGRESS);
+        List<Booking> waitingInBays = bookingRepository.findBookingsByStatus(BookingStatus.ARRIVED)
+                .stream()
+                .filter(b -> b.getBayNumber() != null)
+                .toList();
+
+        List<Booking> allBayBookings = new ArrayList<>();
+        allBayBookings.addAll(activeBookings);
+        allBayBookings.addAll(waitingInBays);
+
+        LocalDateTime limitTime = LocalDateTime.now().plusMinutes(5);
+        List<Booking> queueBookings = new ArrayList<>(bookingRepository.findBookingsByStatus(BookingStatus.ARRIVED)
+                .stream()
+                .filter(b -> b.getBayNumber() == null)
+                .filter(b -> !b.getScheduledStartTime().isAfter(limitTime)) // Only dispatch if within 5 mins of scheduled start time
+                .sorted((b1, b2) -> {
+                    int comp = b1.getScheduledStartTime().compareTo(b2.getScheduledStartTime());
+                    if (comp != 0) {
+                        return comp;
+                    }
+                    LocalDateTime a1 = b1.getArrivedAt() != null ? b1.getArrivedAt() : b1.getScheduledStartTime();
+                    LocalDateTime a2 = b2.getArrivedAt() != null ? b2.getArrivedAt() : b2.getScheduledStartTime();
+                    return a1.compareTo(a2);
+                })
+                .toList());
+
+        int queueIndex = 0;
+        List<WashBayResponse> bays = new ArrayList<>();
+        for (int i = 1; i <= bayCount; i++) {
+            final int bayNum = i;
+            Booking bookingInBay = allBayBookings.stream()
+                    .filter(b -> b.getBayNumber() != null && b.getBayNumber() == bayNum)
+                    .findFirst()
+                    .orElse(null);
+
+            if (bookingInBay == null && queueIndex < queueBookings.size()) {
+                Booking nextBooking = queueBookings.get(queueIndex++);
+                nextBooking.setBayNumber(bayNum);
+                bookingInBay = bookingRepository.save(nextBooking);
+            }
+
+            String bayStatus = "AVAILABLE";
+            if (bookingInBay != null) {
+                if (bookingInBay.getStatus() == BookingStatus.IN_PROGRESS) {
+                    bayStatus = "BUSY";
+                } else if (bookingInBay.getStatus() == BookingStatus.ARRIVED) {
+                    bayStatus = "READY_TO_WASH";
+                }
+            }
+
+            WashBayResponse bayResponse = WashBayResponse.builder()
+                    .id(bayNum)
+                    .name("Bay " + bayNum)
+                    .type("Khoang rửa xe")
+                    .status(bayStatus)
+                    .booking(bookingInBay != null ? bookingMapper.toResponse(bookingInBay) : null)
+                    .build();
+
+            bays.add(bayResponse);
+        }
+        return bays;
+    }
+
+    @Transactional
+    public BookingResponse assignBookingToBay(Long bookingId, Integer bayNumber) {
+        Booking booking = findBookingOrThrow(bookingId);
+
+        if (booking.getStatus() != BookingStatus.ARRIVED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lịch hẹn phải ở trạng thái đã check-in (ARRIVED) mới có thể cho vào khoang.");
+        }
+
+        LocalDateTime limitTime = LocalDateTime.now().plusMinutes(5);
+        if (booking.getScheduledStartTime().isAfter(limitTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chưa đến giờ hẹn để đưa xe vào khoang rửa (chỉ được đưa vào trước tối đa 5 phút).");
+        }
+
+        boolean bayOccupied = bookingRepository.findBookingsByStatus(BookingStatus.IN_PROGRESS)
+                .stream()
+                .anyMatch(b -> b.getBayNumber() != null && b.getBayNumber().equals(bayNumber));
+
+        if (bayOccupied) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Khoang rửa " + bayNumber + " hiện đang có xe đang rửa.");
+        }
+
+        booking.setStatus(BookingStatus.IN_PROGRESS);
+        booking.setBayNumber(bayNumber);
+        booking.setWashStartedAt(LocalDateTime.now());
+
+        return bookingMapper.toResponse(bookingRepository.save(booking));
+    }
+
+    @Transactional
+    public BookingResponse completeWashingInBay(Integer bayNumber) {
+        Booking booking = bookingRepository.findBookingsByStatus(BookingStatus.IN_PROGRESS)
+                .stream()
+                .filter(b -> b.getBayNumber() != null && b.getBayNumber().equals(bayNumber))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy xe đang rửa trong khoang " + bayNumber));
+
+        booking.setStatus(BookingStatus.COMPLETED);
+        booking.setCompletedAt(LocalDateTime.now());
+
+        Payment payment = booking.getPayment();
+        if (payment != null && payment.getPaymentStatus() == PaymentStatus.PENDING) {
+            payment.setPaymentStatus(PaymentStatus.PAID);
+            payment.setPaidAt(LocalDateTime.now());
+            paymentRepository.save(payment);
+        }
+
+        return bookingMapper.toResponse(bookingRepository.save(booking));
+    }
+
+    @Transactional
+    public BookingResponse startWashingInBay(Integer bayNumber) {
+        Booking booking = bookingRepository.findBookingsByStatus(BookingStatus.ARRIVED)
+                .stream()
+                .filter(b -> b.getBayNumber() != null && b.getBayNumber().equals(bayNumber))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, 
+                        "Không tìm thấy xe đang chờ rửa trong khoang " + bayNumber
+                ));
+
+        booking.setStatus(BookingStatus.IN_PROGRESS);
+        booking.setWashStartedAt(LocalDateTime.now());
+
+        return bookingMapper.toResponse(bookingRepository.save(booking));
+    }
 }
 
 

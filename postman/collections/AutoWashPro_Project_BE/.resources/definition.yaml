@@ -1,2 +1,5 @@
 $kind: collection
 name: AutoWashPro_Project_BE
+variables:
+  - key: json_web_token_0e66
+    secret: true

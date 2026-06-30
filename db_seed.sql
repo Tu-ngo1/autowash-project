@@ -205,12 +205,12 @@ BEGIN TRY
     -- 4.10. BOOKINGS (Thêm cột Staff_id để hỗ trợ phân quyền kiểm tra nhân viên phụ trách ca trực)
     -- BK001: PENDING (Chưa check-in, Staff_id = NULL)
     INSERT INTO BOOKINGS (booking_code, user_id, vehicle_id, scheduled_start_time, expected_end_time, status, bay_number, is_late, customer_note, Total_price, Qr_content, Qr_used, arrived_at, wash_started_at, completed_at, Staff_id, created_at, updated_at)
-    VALUES ('BK001', @u_cust1, @car_vios, DATEADD(day, 2, GETDATE()), DATEADD(minute, 30, DATEADD(day, 2, GETDATE())), 'PENDING', NULL, 0, N'Rửa sạch mâm xe giúp tôi.', 100000, 'BK001_QR_CODE', 0, NULL, NULL, NULL, NULL, GETDATE(), GETDATE());
+    VALUES ('BK001', @u_cust1, @car_vios, DATEADD(hour, 9, CAST(GETDATE() AS DATETIME)), DATEADD(minute, 30, DATEADD(hour, 9, CAST(GETDATE() AS DATETIME))), 'PENDING', NULL, 0, N'Rửa sạch mâm xe giúp tôi.', 100000, 'BK001_QR_CODE', 0, NULL, NULL, NULL, NULL, GETDATE(), GETDATE());
     SET @bk1 = SCOPE_IDENTITY();
 
     -- BK002: ARRIVED (Đã check-in bởi Staff 1, Staff_id = @u_staff1)
     INSERT INTO BOOKINGS (booking_code, user_id, vehicle_id, scheduled_start_time, expected_end_time, status, bay_number, is_late, customer_note, Total_price, Qr_content, Qr_used, arrived_at, wash_started_at, completed_at, Staff_id, created_at, updated_at)
-    VALUES ('BK002', @u_cust2, @car_civic, DATEADD(day, 1, GETDATE()), DATEADD(minute, 50, DATEADD(day, 1, GETDATE())), 'ARRIVED', 1, 0, N'Hút bụi kỹ sàn xe.', 220000, 'BK002_QR_CODE', 0, NULL, NULL, NULL, @u_staff1, GETDATE(), GETDATE());
+    VALUES ('BK002', @u_cust2, @car_civic, DATEADD(hour, 10, CAST(GETDATE() AS DATETIME)), DATEADD(minute, 50, DATEADD(hour, 10, CAST(GETDATE() AS DATETIME))), 'ARRIVED', 1, 0, N'Hút bụi kỹ sàn xe.', 220000, 'BK002_QR_CODE', 0, NULL, NULL, NULL, @u_staff1, GETDATE(), GETDATE());
     SET @bk2 = SCOPE_IDENTITY();
 
     -- BK003: COMPLETED (Đã hoàn thành, Check-in bởi Staff 2, Staff_id = @u_staff2)

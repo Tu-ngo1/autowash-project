@@ -30,6 +30,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import com.autowash.features.user.dto.response.AdminUserResponse;
+import com.autowash.features.user.dto.response.CustomerSearchResponse;
+import com.autowash.features.car.dto.response.CarResponse;
+import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -213,6 +216,48 @@ public class UserService {
                     );
                 })
                 .toList();
+    }
+
+    public CustomerSearchResponse searchCustomer(String query) {
+        if (query == null || query.trim().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Từ khóa tìm kiếm không được để trống");
+        }
+        
+        String cleanQuery = query.trim();
+        Optional<User> userOpt = userRepository.findByPhone(cleanQuery);
+        
+        if (userOpt.isEmpty()) {
+            // Nếu không tìm thấy bằng SĐT, tìm bằng biển số xe
+            userOpt = carRepository.findByLicensePlate(cleanQuery)
+                    .map(Car::getUser);
+        }
+        
+        User user = userOpt.orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Không tìm thấy khách hàng hoặc xe phù hợp"
+        ));
+        
+        String tierLevel = "MEMBER";
+        int rewardPoints = 0;
+        if (user.getCustomerProfile() != null) {
+            rewardPoints = user.getCustomerProfile().getRewardPoints();
+            if (user.getCustomerProfile().getTierConfig() != null) {
+                tierLevel = user.getCustomerProfile().getTierConfig().getTierLevel().name();
+            }
+        }
+        
+        List<CarResponse> registeredVehicles = carRepository.findByUserId(user.getId())
+                .stream()
+                .map(CarResponse::fromCar)
+                .toList();
+                
+        return CustomerSearchResponse.builder()
+                .fullName(user.getFullName())
+                .phone(user.getPhone())
+                .tierLevel(tierLevel)
+                .rewardPoints(rewardPoints)
+                .registeredVehicles(registeredVehicles)
+                .build();
     }
 }
 
