@@ -73,7 +73,7 @@ BEGIN TRY
     DECLARE @car_vios INT, @car_civic INT, @car_santafe INT, @car_ranger INT;
     DECLARE @p_promo10 INT, @p_silver INT, @p_gold INT, @p_platinum INT;
     DECLARE @cv_promo10 INT, @cv_silver INT, @cv_gold INT, @cv_platinum INT;
-    DECLARE @bk1 INT, @bk2 INT, @bk3 INT, @bk4 INT;
+    DECLARE @bk1 INT, @bk2 INT, @bk3 INT, @bk4 INT, @bk5 INT;
 
     -- ------------------------------------------------------------------------
     -- STEP 4: INSERT FRESH SEED DATA
@@ -101,6 +101,88 @@ BEGIN TRY
     SET @vm_ranger = SCOPE_IDENTITY();
     INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Kia', 'Morning', 'SMALL', 1, GETDATE(), GETDATE());
     SET @vm_morning = SCOPE_IDENTITY();
+
+    -- Additional Toyota Models
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Toyota', 'Camry', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Toyota', 'Corolla Altis', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Toyota', 'Corolla Cross', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Toyota', 'Fortuner', 'LARGE', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Toyota', 'Innova', 'LARGE', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Toyota', 'Wigo', 'SMALL', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Toyota', 'Raize', 'SMALL', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Toyota', 'Hilux', 'LARGE', 1, GETDATE(), GETDATE());
+
+    -- Additional Honda Models
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Honda', 'City', 'SMALL', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Honda', 'Accord', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Honda', 'CR-V', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Honda', 'HR-V', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Honda', 'Brio', 'SMALL', 1, GETDATE(), GETDATE());
+
+    -- Additional Hyundai Models
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Hyundai', 'Grand i10', 'SMALL', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Hyundai', 'Accent', 'SMALL', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Hyundai', 'Elantra', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Hyundai', 'Tucson', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Hyundai', 'Creta', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Hyundai', 'Stargazer', 'LARGE', 1, GETDATE(), GETDATE());
+
+    -- Additional Kia Models
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Kia', 'K3', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Kia', 'K5', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Kia', 'Seltos', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Kia', 'Sonet', 'SMALL', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Kia', 'Sportage', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Kia', 'Carnival', 'LARGE', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Kia', 'Sorento', 'LARGE', 1, GETDATE(), GETDATE());
+
+    -- Additional Mazda Models
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mazda', '2', 'SMALL', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mazda', '6', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mazda', 'CX-5', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mazda', 'CX-8', 'LARGE', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mazda', 'BT-50', 'LARGE', 1, GETDATE(), GETDATE());
+
+    -- Additional Ford Models
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Ford', 'Everest', 'LARGE', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Ford', 'Explorer', 'LARGE', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Ford', 'Territory', 'MEDIUM', 1, GETDATE(), GETDATE());
+
+    -- Additional Mitsubishi Models
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mitsubishi', 'Xpander', 'LARGE', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mitsubishi', 'Outlander', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mitsubishi', 'Triton', 'LARGE', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mitsubishi', 'Attrage', 'SMALL', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mitsubishi', 'Pajero Sport', 'LARGE', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mitsubishi', 'Xforce', 'MEDIUM', 1, GETDATE(), GETDATE());
+
+    -- Additional VinFast Models
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('VinFast', 'Fadil', 'SMALL', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('VinFast', 'VF 5', 'SMALL', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('VinFast', 'VF 6', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('VinFast', 'VF 7', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('VinFast', 'VF 8', 'LARGE', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('VinFast', 'VF 9', 'LARGE', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('VinFast', 'Lux A2.0', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('VinFast', 'Lux SA2.0', 'LARGE', 1, GETDATE(), GETDATE());
+
+    -- Additional Suzuki Models
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Suzuki', 'Swift', 'SMALL', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Suzuki', 'Ertiga', 'LARGE', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Suzuki', 'XL7', 'LARGE', 1, GETDATE(), GETDATE());
+
+    -- Additional Mercedes-Benz Models
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mercedes-Benz', 'C-Class', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mercedes-Benz', 'E-Class', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mercedes-Benz', 'S-Class', 'LARGE', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mercedes-Benz', 'GLC', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('Mercedes-Benz', 'GLE', 'LARGE', 1, GETDATE(), GETDATE());
+
+    -- Additional BMW Models
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('BMW', '3 Series', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('BMW', '5 Series', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('BMW', 'X3', 'MEDIUM', 1, GETDATE(), GETDATE());
+    INSERT INTO VEHICLE_MODELS (brand, model_name, vehicle_size, is_active, created_at, updated_at) VALUES ('BMW', 'X5', 'LARGE', 1, GETDATE(), GETDATE());
 
     -- 4.3. SERVICES
     INSERT INTO SERVICES (name, description, is_main_service, is_active, created_at, updated_at) VALUES ('Standard Wash', N'Rửa vỏ xe ngoài bằng xà phòng chuyên dụng và lau khô.', 1, 1, GETDATE(), GETDATE());
@@ -205,39 +287,46 @@ BEGIN TRY
     -- 4.10. BOOKINGS (Thêm cột Staff_id để hỗ trợ phân quyền kiểm tra nhân viên phụ trách ca trực)
     -- BK001: PENDING (Chưa check-in, Staff_id = NULL)
     INSERT INTO BOOKINGS (booking_code, user_id, vehicle_id, scheduled_start_time, expected_end_time, status, bay_number, is_late, customer_note, Total_price, Qr_content, Qr_used, arrived_at, wash_started_at, completed_at, Staff_id, created_at, updated_at)
-    VALUES ('BK001', @u_cust1, @car_vios, DATEADD(hour, 9, CAST(GETDATE() AS DATETIME)), DATEADD(minute, 30, DATEADD(hour, 9, CAST(GETDATE() AS DATETIME))), 'PENDING', NULL, 0, N'Rửa sạch mâm xe giúp tôi.', 100000, 'BK001_QR_CODE', 0, NULL, NULL, NULL, NULL, GETDATE(), GETDATE());
+    VALUES ('BK001', @u_cust1, @car_vios, '2026-06-30 09:00:00', '2026-06-30 09:30:00', 'PENDING', NULL, 0, N'Rửa sạch mâm xe giúp tôi.', 100000, 'AUTOWASH|BOOKING|BK001|d3b07384-d113-4a1b-a56e-821b017b2b73', 0, NULL, NULL, NULL, NULL, GETDATE(), GETDATE());
     SET @bk1 = SCOPE_IDENTITY();
 
-    -- BK002: ARRIVED (Đã check-in bởi Staff 1, Staff_id = @u_staff1)
+    -- BK002: PENDING (Chưa check-in, Staff_id = NULL)
     INSERT INTO BOOKINGS (booking_code, user_id, vehicle_id, scheduled_start_time, expected_end_time, status, bay_number, is_late, customer_note, Total_price, Qr_content, Qr_used, arrived_at, wash_started_at, completed_at, Staff_id, created_at, updated_at)
-    VALUES ('BK002', @u_cust2, @car_civic, DATEADD(hour, 10, CAST(GETDATE() AS DATETIME)), DATEADD(minute, 50, DATEADD(hour, 10, CAST(GETDATE() AS DATETIME))), 'ARRIVED', 1, 0, N'Hút bụi kỹ sàn xe.', 220000, 'BK002_QR_CODE', 0, NULL, NULL, NULL, @u_staff1, GETDATE(), GETDATE());
+    VALUES ('BK002', @u_cust2, @car_civic, '2026-06-30 10:00:00', '2026-06-30 10:50:00', 'PENDING', NULL, 0, N'Hút bụi kỹ sàn xe.', 220000, 'AUTOWASH|BOOKING|BK002|f47ac10b-58cc-4372-a567-0e02b2c3d479', 0, NULL, NULL, NULL, NULL, GETDATE(), GETDATE());
     SET @bk2 = SCOPE_IDENTITY();
 
     -- BK003: COMPLETED (Đã hoàn thành, Check-in bởi Staff 2, Staff_id = @u_staff2)
     INSERT INTO BOOKINGS (booking_code, user_id, vehicle_id, scheduled_start_time, expected_end_time, status, bay_number, is_late, customer_note, Total_price, Qr_content, Qr_used, arrived_at, wash_started_at, completed_at, Staff_id, created_at, updated_at)
-    VALUES ('BK003', @u_cust3, @car_santafe, DATEADD(day, -2, GETDATE()), DATEADD(minute, 80, DATEADD(day, -2, GETDATE())), 'COMPLETED', 2, 0, NULL, 500000, 'BK003_QR_CODE', 1, DATEADD(minute, -5, DATEADD(day, -2, GETDATE())), DATEADD(day, -2, GETDATE()), DATEADD(minute, 80, DATEADD(day, -2, GETDATE())), @u_staff2, DATEADD(day, -2, GETDATE()), DATEADD(day, -2, GETDATE()));
+    VALUES ('BK003', @u_cust3, @car_santafe, '2026-06-28 14:00:00', '2026-06-28 15:20:00', 'COMPLETED', 2, 0, NULL, 500000, 'AUTOWASH|BOOKING|BK003|a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 1, '2026-06-28 13:55:00', '2026-06-28 14:00:00', '2026-06-28 15:20:00', @u_staff2, '2026-06-28 14:00:00', '2026-06-28 15:20:00');
     SET @bk3 = SCOPE_IDENTITY();
 
     -- BK004: COMPLETED (Đã hoàn thành, Check-in bởi Staff 1, Staff_id = @u_staff1)
     INSERT INTO BOOKINGS (booking_code, user_id, vehicle_id, scheduled_start_time, expected_end_time, status, bay_number, is_late, customer_note, Total_price, Qr_content, Qr_used, arrived_at, wash_started_at, completed_at, Staff_id, created_at, updated_at)
-    VALUES ('BK004', @u_cust4, @car_ranger, DATEADD(day, -3, GETDATE()), DATEADD(minute, 55, DATEADD(day, -3, GETDATE())), 'COMPLETED', 1, 0, NULL, 260000, 'BK004_QR_CODE', 1, DATEADD(minute, -10, DATEADD(day, -3, GETDATE())), DATEADD(day, -3, GETDATE()), DATEADD(minute, 55, DATEADD(day, -3, GETDATE())), @u_staff1, DATEADD(day, -3, GETDATE()), DATEADD(day, -3, GETDATE()));
+    VALUES ('BK004', @u_cust4, @car_ranger, '2026-06-27 16:00:00', '2026-06-27 16:55:00', 'COMPLETED', 1, 0, NULL, 260000, 'AUTOWASH|BOOKING|BK004|9f8e7d6c-5b4a-3f2e-1d0c-9b8a7f6e5d4c', 1, '2026-06-27 15:50:00', '2026-06-27 16:00:00', '2026-06-27 16:55:00', @u_staff1, '2026-06-27 16:00:00', '2026-06-27 16:55:00');
     SET @bk4 = SCOPE_IDENTITY();
+
+    -- BK005: PENDING (Chưa check-in, Staff_id = NULL) - Hẹn lúc 8:45 để test dispatcher
+    INSERT INTO BOOKINGS (booking_code, user_id, vehicle_id, scheduled_start_time, expected_end_time, status, bay_number, is_late, customer_note, Total_price, Qr_content, Qr_used, arrived_at, wash_started_at, completed_at, Staff_id, created_at, updated_at)
+    VALUES ('BK005', @u_cust3, @car_santafe, '2026-06-30 08:45:00', '2026-06-30 09:25:00', 'PENDING', NULL, 0, N'Rửa kỹ mâm xe giùm em.', 160000, 'AUTOWASH|BOOKING|BK005|b8f6c5d4-a3e2-1b0c-9a8f-7e6d5c4b3a21', 0, NULL, NULL, NULL, NULL, GETDATE(), GETDATE());
+    SET @bk5 = SCOPE_IDENTITY();
 
     -- 4.11. BOOKING_DETAILS (Bỏ cột service_id)
     INSERT INTO BOOKING_DETAILS (booking_id, service_price_id, actual_price, actual_duration_minutes) VALUES (@bk1, @sp_std_s, 100000, 30);
     INSERT INTO BOOKING_DETAILS (booking_id, service_price_id, actual_price, actual_duration_minutes) VALUES (@bk2, @sp_prem_m, 220000, 50);
     INSERT INTO BOOKING_DETAILS (booking_id, service_price_id, actual_price, actual_duration_minutes) VALUES (@bk3, @sp_steam_l, 500000, 80);
     INSERT INTO BOOKING_DETAILS (booking_id, service_price_id, actual_price, actual_duration_minutes) VALUES (@bk4, @sp_prem_l, 260000, 55);
+    INSERT INTO BOOKING_DETAILS (booking_id, service_price_id, actual_price, actual_duration_minutes) VALUES (@bk5, @sp_std_l, 160000, 40);
 
     -- 4.12. PAYMENTS
     INSERT INTO PAYMENTS (booking_id, applied_voucher_id, payment_status, payment_method, sub_total, discount_amount, final_price, paid_at, created_at, updated_at) VALUES (@bk1, NULL, 'PENDING', 'PAYOS', 100000, 0, 100000, NULL, GETDATE(), GETDATE());
     INSERT INTO PAYMENTS (booking_id, applied_voucher_id, payment_status, payment_method, sub_total, discount_amount, final_price, paid_at, created_at, updated_at) VALUES (@bk2, NULL, 'PENDING', 'CASH', 220000, 0, 220000, NULL, GETDATE(), GETDATE());
-    INSERT INTO PAYMENTS (booking_id, applied_voucher_id, payment_status, payment_method, sub_total, discount_amount, final_price, paid_at, created_at, updated_at) VALUES (@bk3, @cv_gold, 'PAID', 'CASH', 500000, 50000, 450000, DATEADD(minute, 80, DATEADD(day, -2, GETDATE())), DATEADD(day, -2, GETDATE()), DATEADD(day, -2, GETDATE()));
-    INSERT INTO PAYMENTS (booking_id, applied_voucher_id, payment_status, payment_method, sub_total, discount_amount, final_price, paid_at, created_at, updated_at) VALUES (@bk4, NULL, 'PAID', 'PAYOS', 260000, 0, 260000, DATEADD(minute, 55, DATEADD(day, -3, GETDATE())), DATEADD(day, -3, GETDATE()), DATEADD(day, -3, GETDATE()));
+    INSERT INTO PAYMENTS (booking_id, applied_voucher_id, payment_status, payment_method, sub_total, discount_amount, final_price, paid_at, created_at, updated_at) VALUES (@bk3, @cv_gold, 'PAID', 'CASH', 500000, 50000, 450000, '2026-06-28 15:20:00', '2026-06-28 14:00:00', '2026-06-28 15:20:00');
+    INSERT INTO PAYMENTS (booking_id, applied_voucher_id, payment_status, payment_method, sub_total, discount_amount, final_price, paid_at, created_at, updated_at) VALUES (@bk4, NULL, 'PAID', 'PAYOS', 260000, 0, 260000, '2026-06-27 16:55:00', '2026-06-27 16:00:00', '2026-06-27 16:55:00');
+    INSERT INTO PAYMENTS (booking_id, applied_voucher_id, payment_status, payment_method, sub_total, discount_amount, final_price, paid_at, created_at, updated_at) VALUES (@bk5, NULL, 'PENDING', 'PAYOS', 160000, 0, 160000, NULL, GETDATE(), GETDATE());
 
     -- 4.13. REVIEWS
-    INSERT INTO REVIEWS (booking_id, rating, comment, created_at) VALUES (@bk3, 5, N'Dịch vụ dọn khoang máy hơi nước siêu sạch, nhân viên tay nghề cao!', DATEADD(hour, 1, DATEADD(minute, 80, DATEADD(day, -2, GETDATE()))));
-    INSERT INTO REVIEWS (booking_id, rating, comment, created_at) VALUES (@bk4, 4, N'Rửa xe rất kỹ, nhân viên niềm nở chu đáo. Sẽ quay lại thường xuyên.', DATEADD(hour, 2, DATEADD(minute, 55, DATEADD(day, -3, GETDATE()))));
+    INSERT INTO REVIEWS (booking_id, rating, comment, created_at) VALUES (@bk3, 5, N'Dịch vụ dọn khoang máy hơi nước siêu sạch, nhân viên tay nghề cao!', '2026-06-28 16:20:00');
+    INSERT INTO REVIEWS (booking_id, rating, comment, created_at) VALUES (@bk4, 4, N'Rửa xe rất kỹ, nhân viên niềm nở chu đáo. Sẽ quay lại thường xuyên.', '2026-06-27 18:55:00');
 
     -- 4.14. OTP_TOKENS
     INSERT INTO OTP_TOKENS (user_id, email, otp_code, resend_count, is_verified, created_at, expired_at, purpose) VALUES (@u_cust1, 'customer1@example.com', '123456', 0, 1, DATEADD(day, -10, GETDATE()), DATEADD(hour, 1, DATEADD(day, -10, GETDATE())), 'REGISTER');
