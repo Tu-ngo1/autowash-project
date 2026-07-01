@@ -44,7 +44,11 @@ public class OtpService {
                 .createdAt(LocalDateTime.now())
                 .expiredAt(LocalDateTime.now().plusMinutes(5))
                 .build();
-        emailService.sendRegistrationOtp(user.getEmail(), otpCode);
+        try {
+            emailService.sendRegistrationOtp(user.getEmail(), otpCode);
+        } catch (Exception e) {
+            System.out.println("====== [TEST OTP] User: " + user.getEmail() + " | Code: " + otpCode + " ======");
+        }
         return otpTokenRepository.save(otpToken);
     }
 
@@ -79,7 +83,11 @@ public class OtpService {
                 .expiredAt(LocalDateTime.now().plusMinutes(5))
                 .build();
 
-        emailService.sendRegistrationOtp(user.getEmail(), otpCode);
+        try {
+            emailService.sendRegistrationOtp(user.getEmail(), otpCode);
+        } catch (Exception e) {
+            System.out.println("====== [TEST OTP] Resend User: " + user.getEmail() + " | Code: " + otpCode + " ======");
+        }
         return otpTokenRepository.save(newOtp);
     }
 
@@ -157,7 +165,11 @@ public class OtpService {
                 .build();
 
         otpTokenRepository.save(otpToken);
-        emailService.sendRegistrationOtp(normalizedEmail, otpCode);
+        try {
+            emailService.sendRegistrationOtp(normalizedEmail, otpCode);
+        } catch (Exception e) {
+            System.out.println("====== [TEST OTP] Registration Email: " + normalizedEmail + " | Code: " + otpCode + " ======");
+        }
     }
 
     @Transactional
