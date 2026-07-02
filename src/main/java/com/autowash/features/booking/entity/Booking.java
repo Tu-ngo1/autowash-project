@@ -75,7 +75,7 @@ public class Booking {
     @Column(name = "Is_late", nullable = false)
     private Boolean late = false;
 
-    @Column(name = "Customer_note", columnDefinition = "nvarchar(max)")
+    @Column(name = "Customer_note", columnDefinition = "TEXT")
     private String customerNote;
 
     @Column(name = "Total_price", nullable = false)
