@@ -40,7 +40,7 @@ public class Review {
     @Column(nullable = false)
     private Integer rating;
 
-    @Column(columnDefinition = "nvarchar(max)")
+    @Column(columnDefinition = "TEXT")
     private String comment;
 
     @Column(name = "Created_at")

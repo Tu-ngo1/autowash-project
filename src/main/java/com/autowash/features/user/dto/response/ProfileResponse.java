@@ -15,4 +15,5 @@ public class ProfileResponse {
     private String email;
     private Integer rewardPoints;
     private Integer tierPoints;
+    private Integer walletBalance;
 }

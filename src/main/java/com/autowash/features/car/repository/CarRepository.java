@@ -23,6 +23,8 @@ public interface CarRepository extends JpaRepository<Car, Long> {
 
     boolean existsByLicensePlate(String licensePlate);
 
+    Optional<Car> findByLicensePlate(String licensePlate);
+
     boolean existsByLicensePlateAndStatus(String licensePlate, CarStatus status);
 
     List<Car> findByVehicleModelVehicleSize(VehicleSize vehicleSize);

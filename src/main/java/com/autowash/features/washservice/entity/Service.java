@@ -42,7 +42,7 @@ public class Service {
     @Column(nullable = false)
     private String name;
 
-    @Column(columnDefinition = "nvarchar(max)")
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Builder.Default
@@ -50,7 +50,7 @@ public class Service {
     private Boolean active = true;
 
     @Builder.Default
-    @Column(name = "Is_main_service", nullable = false, columnDefinition = "bit default 0")
+    @Column(name = "Is_main_service", nullable = false)
     private Boolean isMainService = false;
 
     @Column(name = "Created_at")

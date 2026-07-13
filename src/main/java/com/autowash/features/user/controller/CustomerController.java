@@ -11,6 +11,7 @@ import com.autowash.features.promotion.entity.CustomerVoucher;
 import com.autowash.features.promotion.entity.Promotion;
 import com.autowash.features.promotion.repository.CustomerVoucherRepository;
 import com.autowash.features.user.entity.TierConfig;
+import com.autowash.features.user.entity.CustomerProfile;
 import com.autowash.features.user.repository.TierConfigRepository;
 import com.autowash.features.user.enums.TierLevel;
 import com.autowash.features.user.dto.request.UpdateProfileRequest;
@@ -137,6 +138,74 @@ public class CustomerController {
         }
         
         return responses;
+    }
+
+    @GetMapping("/loyalty")
+    public LoyaltyResponse getLoyaltySummary() {
+        User currentUser = userService.getCurrentUserEntity();
+        CustomerProfile profile = currentUser.getCustomerProfile();
+        
+        String tierName = "MEMBER";
+        int points = 0;
+        int redeemablePoints = 0;
+        
+        if (profile != null) {
+            tierName = profile.getTierConfig() != null ? profile.getTierConfig().getTierLevel().name() : "MEMBER";
+            points = profile.getTierPoints() != null ? profile.getTierPoints() : 0;
+            redeemablePoints = profile.getRewardPoints() != null ? profile.getRewardPoints() : 0;
+        }
+        
+        List<TierConfig> tierConfigs = tierConfigRepository.findAll();
+        TierConfig currentTier = null;
+        TierConfig nextTier = null;
+        
+        for (TierConfig tc : tierConfigs) {
+            if (tc.getTierLevel().name().equalsIgnoreCase(tierName)) {
+                currentTier = tc;
+            }
+        }
+        
+        if (tierName.equalsIgnoreCase("MEMBER")) {
+            nextTier = findTierConfigByLevel(tierConfigs, TierLevel.SILVER);
+        } else if (tierName.equalsIgnoreCase("SILVER")) {
+            nextTier = findTierConfigByLevel(tierConfigs, TierLevel.GOLD);
+        } else if (tierName.equalsIgnoreCase("GOLD")) {
+            nextTier = findTierConfigByLevel(tierConfigs, TierLevel.PLATINUM);
+        }
+        
+        int nextTierTarget = points;
+        int progress = 100;
+        
+        if (nextTier != null) {
+            int currentMin = currentTier != null && currentTier.getPointsToMaintain() != null ? currentTier.getPointsToMaintain() : 0;
+            int targetPoints = nextTier.getPointsToMaintain() != null ? nextTier.getPointsToMaintain() : 0;
+            nextTierTarget = targetPoints;
+            if (targetPoints > currentMin) {
+                progress = ((points - currentMin) * 100) / (targetPoints - currentMin);
+                if (progress < 0) progress = 0;
+                if (progress > 100) progress = 100;
+            } else {
+                progress = 0;
+            }
+        }
+        
+        List<CustomerVoucherResponse> vouchers = getLoyaltyVouchers();
+        
+        return LoyaltyResponse.builder()
+                .tier(tierName)
+                .points(points)
+                .redeemablePoints(redeemablePoints)
+                .nextTierTarget(nextTierTarget)
+                .progress(progress)
+                .vouchers(vouchers)
+                .build();
+    }
+    
+    private TierConfig findTierConfigByLevel(List<TierConfig> configs, TierLevel level) {
+        return configs.stream()
+                .filter(c -> c.getTierLevel() == level)
+                .findFirst()
+                .orElse(null);
     }
 
     // --- Endpoints quản lý Voucher cho khách hàng ---
@@ -295,6 +364,17 @@ public class CustomerController {
     public static class VoucherBriefResponse {
         private Long id;
         private String voucherCode;
+    }
+
+    @Getter
+    @Builder
+    public static class LoyaltyResponse {
+        private String tier;
+        private Integer points;
+        private Integer redeemablePoints;
+        private Integer nextTierTarget;
+        private Integer progress;
+        private List<CustomerVoucherResponse> vouchers;
     }
 }
 
