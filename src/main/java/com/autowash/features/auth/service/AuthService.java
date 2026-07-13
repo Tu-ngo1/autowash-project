@@ -15,6 +15,8 @@ import com.autowash.infrastructure.security.JwtService;
 import com.autowash.features.user.repository.CustomerProfileRepository;
 import com.autowash.features.user.repository.TierConfigRepository;
 import com.autowash.features.user.repository.UserRepository;
+import com.autowash.features.wallet.entity.Wallet;
+import com.autowash.features.wallet.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,6 +34,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final OtpService otpService;
+    private final WalletRepository walletRepository;
 
     @Transactional
     public void sendRegistrationOtp(String email) {
@@ -108,6 +111,12 @@ public class AuthService {
                     .build();
 
             customerProfileRepository.save(profile);
+
+            Wallet wallet = Wallet.builder()
+                    .user(savedUser)
+                    .balance(0)
+                    .build();
+            walletRepository.save(wallet);
         }
 
         otpService.consumeRegistrationOtp(email);
