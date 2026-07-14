@@ -49,7 +49,18 @@ public class PaymentWebhookController {
             long orderCode = data.getOrderCode();
             if (orderCode >= 5000000000000000L) {
                 // Đây là giao dịch nạp tiền vào ví!
-                long userId = (orderCode - 5000000000000000L) / 10000000L;
+                long userId;
+                int depositAmount;
+
+                if (orderCode >= 6000000000000000L) {
+                    long temp = orderCode - 6000000000000000L;
+                    userId = temp / 10000000000L;
+                    long remaining = temp % 10000000000L;
+                    depositAmount = (int) (remaining / 100L);
+                } else {
+                    userId = (orderCode - 5000000000000000L) / 10000000L;
+                    depositAmount = data.getAmount() != null ? data.getAmount().intValue() : 0;
+                }
 
                 // Tìm ví của user hoặc tự động tạo mới
                 Wallet wallet = walletRepository.findByUserId(userId)
@@ -70,7 +81,6 @@ public class PaymentWebhookController {
                         .anyMatch(tx -> txDescription.equals(tx.getDescription()));
 
                 if (!txExists && "00".equals(data.getCode())) {
-                    int depositAmount = data.getAmount() != null ? data.getAmount().intValue() : 0;
                     // Cộng tiền vào ví
                     wallet.setBalance(wallet.getBalance() + depositAmount);
                     walletRepository.save(wallet);

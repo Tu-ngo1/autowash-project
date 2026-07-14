@@ -25,4 +25,9 @@ public class WalletController {
     public List<WalletTransactionResponse> getTransactions() {
         return walletService.getTransactions();
     }
+
+    @PostMapping("/verify-payment/{orderCode}")
+    public void verifyPayment(@PathVariable Long orderCode) {
+        walletService.verifyDeposit(orderCode);
+    }
 }

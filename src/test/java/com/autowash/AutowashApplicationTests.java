@@ -163,5 +163,13 @@ class AutowashApplicationTests {
             cleanBookingsForVehicles(List.of(4L, 5L));
         }
     }
+
+    @Test
+    void testPaymentLinkFields() {
+        for (java.lang.reflect.Method method : vn.payos.model.v2.paymentRequests.PaymentLink.class.getDeclaredMethods()) {
+            System.out.println("METHOD: " + method.getReturnType().getName() + " " + method.getName());
+        }
+    }
 }
+
 
