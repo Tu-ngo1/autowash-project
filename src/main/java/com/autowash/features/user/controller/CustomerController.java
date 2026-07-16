@@ -10,6 +10,7 @@ import com.autowash.features.booking.repository.DailyOperationsConfigRepository;
 import com.autowash.features.promotion.entity.CustomerVoucher;
 import com.autowash.features.promotion.entity.Promotion;
 import com.autowash.features.promotion.repository.CustomerVoucherRepository;
+import com.autowash.features.promotion.repository.PromotionRepository;
 import com.autowash.features.user.entity.TierConfig;
 import com.autowash.features.user.entity.CustomerProfile;
 import com.autowash.features.user.repository.TierConfigRepository;
@@ -42,6 +43,7 @@ public class CustomerController {
     private final DailyOperationsConfigRepository dailyOperationsConfigRepository;
     private final TierConfigRepository tierConfigRepository;
     private final CustomerVoucherRepository customerVoucherRepository;
+    private final PromotionRepository promotionRepository;
 
     @GetMapping("/me")
     public UserResponse getCurrentUser() {
@@ -189,7 +191,10 @@ public class CustomerController {
             }
         }
         
-        List<CustomerVoucherResponse> vouchers = getLoyaltyVouchers();
+        List<CustomerVoucher> cvs = customerVoucherRepository.findByUserId(currentUser.getId());
+        List<CustomerVoucherResponse> vouchers = cvs.stream()
+                .map(this::mapToCustomerVoucherResponse)
+                .collect(Collectors.toList());
         
         return LoyaltyResponse.builder()
                 .tier(tierName)
@@ -208,15 +213,54 @@ public class CustomerController {
                 .orElse(null);
     }
 
+    @PostMapping("/loyalty/redeem")
+    public CustomerVoucherResponse redeemVoucher(@RequestBody RedeemVoucherRequest request) {
+        User currentUser = userService.getCurrentUserEntity();
+        return userService.redeemVoucher(currentUser.getId(), request.getVoucherId());
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RedeemVoucherRequest {
+        private Long voucherId;
+    }
+
     // --- Endpoints quản lý Voucher cho khách hàng ---
 
     @GetMapping("/loyalty/vouchers")
     public List<CustomerVoucherResponse> getLoyaltyVouchers() {
         User currentUser = userService.getCurrentUserEntity();
-        List<CustomerVoucher> cvs = customerVoucherRepository.findByUserId(currentUser.getId());
-        return cvs.stream()
-                .map(this::mapToCustomerVoucherResponse)
+        CustomerProfile profile = currentUser.getCustomerProfile();
+        
+        TierLevel userTier = (profile != null && profile.getTierConfig() != null) 
+                ? profile.getTierConfig().getTierLevel() 
+                : TierLevel.MEMBER;
+                
+        List<Promotion> promotions = promotionRepository.findAll();
+        LocalDateTime now = LocalDateTime.now();
+        
+        return promotions.stream()
+                .filter(p -> Boolean.TRUE.equals(p.getActive()))
+                .filter(p -> p.getStartAt() == null || p.getStartAt().isBefore(now))
+                .filter(p -> p.getEndAt() == null || p.getEndAt().isAfter(now))
+                .filter(p -> p.getTargetTier() != null && userTier.ordinal() >= p.getTargetTier().getTierLevel().ordinal())
+                .map(this::mapPromotionToResponse)
                 .collect(Collectors.toList());
+    }
+
+    private CustomerVoucherResponse mapPromotionToResponse(Promotion promotion) {
+        return CustomerVoucherResponse.builder()
+                .id(null)
+                .promotionId(promotion.getId())
+                .voucherCode(promotion.getVoucherCode())
+                .campaignName(promotion.getCampaignName())
+                .discountAmount(promotion.getDiscountAmount())
+                .discountPercent(promotion.getDiscountPercent())
+                .maxDiscountAmount(promotion.getMaxDiscountAmount())
+                .pointCost(promotion.getPointCost())
+                .status("AVAILABLE")
+                .build();
     }
 
     @GetMapping("/{customerId}/vouchers")
@@ -285,6 +329,7 @@ public class CustomerController {
                 .discountAmount(promo != null ? promo.getDiscountAmount() : null)
                 .discountPercent(promo != null ? promo.getDiscountPercent() : null)
                 .maxDiscountAmount(promo != null ? promo.getMaxDiscountAmount() : null)
+                .pointCost(promo != null ? promo.getPointCost() : null)
                 .status(cv.getStatus() != null ? cv.getStatus().name() : "AVAILABLE")
                 .redeemedAt(cv.getRedeemedAt())
                 .usedAt(cv.getUsedAt())
@@ -336,6 +381,7 @@ public class CustomerController {
         private Integer discountAmount;
         private BigDecimal discountPercent;
         private Integer maxDiscountAmount;
+        private Integer pointCost;
         private String status;
         private LocalDateTime redeemedAt;
         private LocalDateTime usedAt;

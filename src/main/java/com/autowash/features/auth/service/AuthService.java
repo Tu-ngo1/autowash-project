@@ -126,7 +126,8 @@ public class AuthService {
         return new AuthResponse(
                 token,
                 savedUser.getRole().name(),
-                getDashboardUrlByRole(savedUser.getRole())
+                getDashboardUrlByRole(savedUser.getRole()),
+                buildAuthUserResponse(savedUser)
         );
     }
 
@@ -175,7 +176,49 @@ public class AuthService {
 
         String token = jwtService.generateToken(user.getEmail(), user.getRole().name());
 
-        return new AuthResponse(token, user.getRole().name(), getDashboardUrlByRole(user.getRole()));
+        return new AuthResponse(
+                token,
+                user.getRole().name(),
+                getDashboardUrlByRole(user.getRole()),
+                buildAuthUserResponse(user)
+        );
+    }
+
+    private AuthResponse.AuthUserResponse buildAuthUserResponse(User user) {
+        String tier = "Member";
+        Integer points = 0;
+        if (user.getRole() == Role.CUSTOMER) {
+            CustomerProfile profile = customerProfileRepository.findByUser(user).orElse(null);
+            if (profile != null) {
+                tier = (profile.getTierConfig() != null) ? profile.getTierConfig().getTierLevel().name() : "Member";
+                points = profile.getRewardPoints();
+            }
+        } else if (user.getRole() == Role.ADMIN) {
+            tier = "Admin";
+        } else if (user.getRole() == Role.STAFF) {
+            tier = "Staff";
+        }
+        
+        Integer walletBalance = walletRepository.findWalletByUserId(user.getId())
+                .map(Wallet::getBalance)
+                .orElse(0);
+
+        String formattedTier = tier;
+        if ("MEMBER".equalsIgnoreCase(tier)) formattedTier = "Member";
+        else if ("SILVER".equalsIgnoreCase(tier)) formattedTier = "Silver";
+        else if ("GOLD".equalsIgnoreCase(tier)) formattedTier = "Gold";
+        else if ("PLATINUM".equalsIgnoreCase(tier)) formattedTier = "Platinum";
+
+        return AuthResponse.AuthUserResponse.builder()
+                .id(user.getId())
+                .name(user.getFullName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .role(user.getRole().name())
+                .tier(formattedTier)
+                .points(points)
+                .walletBalance(walletBalance)
+                .build();
     }
 
     private String normalizeRequired(String value, String message) {

@@ -29,7 +29,12 @@ public class OperationsConfigService {
 
     @Transactional
     public DailyOperationsConfig updateConfigForTomorrow(UpdateDailyConfigRequest request) {
-        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        return updateConfigForDate(LocalDate.now().plusDays(1), request);
+    }
+
+    @Transactional
+    public DailyOperationsConfig updateConfigForDate(LocalDate targetDate, UpdateDailyConfigRequest request) {
+        LocalDate tomorrow = targetDate;
 
         // 1. Nếu Admin thiết lập làm ngày nghỉ (isActive = false)
         if (Boolean.FALSE.equals(request.getIsActive())) {
@@ -149,5 +154,20 @@ public class OperationsConfigService {
         config.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
 
         return configRepository.save(config);
+    }
+
+    public DailyOperationsConfig getTomorrowConfig() {
+        return getConfigForDate(LocalDate.now().plusDays(1));
+    }
+
+    public DailyOperationsConfig getConfigForDate(LocalDate targetDate) {
+        return configRepository.findByConfigDate(targetDate)
+                .orElse(DailyOperationsConfig.builder()
+                        .configDate(targetDate)
+                        .openTime(LocalTime.of(8, 0))
+                        .closeTime(LocalTime.of(17, 0))
+                        .bayCount(3)
+                        .isActive(true)
+                        .build());
     }
 }

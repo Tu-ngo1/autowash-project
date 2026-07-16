@@ -15,6 +15,8 @@ import java.util.Optional;
 @Repository
 public interface ServicePriceRepository extends JpaRepository<ServicePrice, Long> {
 
+    List<ServicePrice> findByServiceId(Long serviceId);
+
     List<ServicePrice> findByServiceIdAndActiveTrue(Long serviceId);
 
     Optional<ServicePrice> findByServiceIdAndVehicleSizeAndActiveTrue(

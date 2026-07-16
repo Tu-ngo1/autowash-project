@@ -33,6 +33,15 @@ import com.autowash.features.user.dto.response.AdminUserResponse;
 import com.autowash.features.user.dto.response.CustomerSearchResponse;
 import com.autowash.features.car.dto.response.CarResponse;
 import java.util.Optional;
+import com.autowash.features.promotion.entity.Promotion;
+import com.autowash.features.promotion.entity.CustomerVoucher;
+import com.autowash.features.promotion.enums.VoucherStatus;
+import com.autowash.features.promotion.repository.PromotionRepository;
+import com.autowash.features.promotion.repository.CustomerVoucherRepository;
+import com.autowash.features.user.controller.CustomerController.CustomerVoucherResponse;
+import java.util.UUID;
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -44,6 +53,8 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final CarRepository carRepository;
     private final BookingRepository bookingRepository;
+    private final PromotionRepository promotionRepository;
+    private final CustomerVoucherRepository customerVoucherRepository;
 
     public User getCurrentUserEntity() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -257,6 +268,78 @@ public class UserService {
                 .tierLevel(tierLevel)
                 .rewardPoints(rewardPoints)
                 .registeredVehicles(registeredVehicles)
+                .build();
+    }
+
+    @Transactional
+    public CustomerVoucherResponse redeemVoucher(Long userId, Long promotionId) {
+        // 1. Tìm thông tin khách hàng và profile
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy người dùng"));
+                
+        CustomerProfile profile = customerProfileRepository.findByUser(user)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ thành viên"));
+
+        // 2. Tìm thông tin chiến dịch khuyến mãi (Promotion)
+        Promotion promotion = promotionRepository.findById(promotionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy chương trình khuyến mại"));
+
+        // 3. Kiểm tra xem Promotion có đang hoạt động không
+        if (Boolean.FALSE.equals(promotion.getActive())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chương trình khuyến mại đã ngừng hoạt động");
+        }
+        
+        LocalDateTime now = LocalDateTime.now();
+        if (promotion.getStartAt() != null && promotion.getStartAt().isAfter(now)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chương trình khuyến mại chưa bắt đầu");
+        }
+        if (promotion.getEndAt() != null && promotion.getEndAt().isBefore(now)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chương trình khuyến mại đã kết thúc");
+        }
+
+        // 4. Kiểm tra số dư điểm thưởng
+        int pointsNeeded = promotion.getPointCost() != null ? promotion.getPointCost() : 0;
+        int currentPoints = profile.getRewardPoints() != null ? profile.getRewardPoints() : 0;
+        
+        if (currentPoints < pointsNeeded) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số điểm thưởng tích lũy không đủ để đổi voucher này");
+        }
+
+        // 5. Khấu trừ điểm thưởng
+        profile.setRewardPoints(currentPoints - pointsNeeded);
+        customerProfileRepository.save(profile);
+
+        // 6. Sinh mã Voucher ngẫu nhiên duy nhất cho khách hàng
+        // Định dạng: [MÃ_CHIẾN_DỊCH]-[RNG-4-CHAR] (ví dụ: GOLD10-8D2A)
+        String uniqueVoucherCode = promotion.getVoucherCode() + "-" + 
+                UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+
+        // 7. Tạo mới CustomerVoucher
+        LocalDateTime expiredDate = promotion.getEndAt() != null ? promotion.getEndAt() : now.plusDays(30);
+        CustomerVoucher customerVoucher = CustomerVoucher.builder()
+                .user(user)
+                .promotion(promotion)
+                .voucherCode(uniqueVoucherCode)
+                .status(VoucherStatus.AVAILABLE)
+                .redeemedAt(now)
+                .expiredAt(expiredDate)
+                .build();
+
+        CustomerVoucher savedVoucher = customerVoucherRepository.save(customerVoucher);
+
+        // 8. Trả về Response DTO tương thích với Frontend
+        return CustomerVoucherResponse.builder()
+                .id(savedVoucher.getId())
+                .promotionId(promotion.getId())
+                .voucherCode(savedVoucher.getVoucherCode())
+                .campaignName(promotion.getCampaignName())
+                .discountAmount(promotion.getDiscountAmount())
+                .discountPercent(promotion.getDiscountPercent())
+                .maxDiscountAmount(promotion.getMaxDiscountAmount())
+                .pointCost(promotion.getPointCost())
+                .status(savedVoucher.getStatus().name())
+                .redeemedAt(savedVoucher.getRedeemedAt())
+                .expiredAt(savedVoucher.getExpiredAt())
                 .build();
     }
 }
