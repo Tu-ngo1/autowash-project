@@ -113,11 +113,6 @@ public class WashService {
 
     // Admin xóa mềm dịch vụ
     // Không xóa khỏi DB để tránh mất lịch sử booking
-    public void deleteService(Long id) {
-        Service service = findServiceOrThrow(id);
-        service.setActive(false);
-        serviceRepository.save(service);
-    }
 
     // Hàm dùng chung: tìm service, nếu không có thì báo lỗi
     private Service findServiceOrThrow(Long id) {
