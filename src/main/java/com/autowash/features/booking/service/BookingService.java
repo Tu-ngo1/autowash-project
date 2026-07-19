@@ -1331,6 +1331,10 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn đặt lịch"));
 
+        if (booking.getStatus() == BookingStatus.COMPLETED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể chỉnh sửa trạng thái của đơn đặt lịch đã hoàn thành");
+        }
+
         BookingStatus oldStatus = booking.getStatus();
         booking.setStatus(status);
 
