@@ -95,6 +95,11 @@ public class BookingMapper {
                 .tierLevel(tierLevel)
                 .discount(discount)
                 .details(details)
+                .cancelRequestStatus(booking.getCancelRequestStatus() != null ? booking.getCancelRequestStatus().name() : null)
+                .cancelRequestReason(booking.getCancelRequestReason())
+                .cancelRequestedByName(booking.getCancelRequestedBy() != null ? booking.getCancelRequestedBy().getFullName() : null)
+                .cancelRequestedAt(booking.getCancelRequestedAt())
+                .cancelRequestAdminNote(booking.getCancelRequestAdminNote())
                 .build();
     }
 

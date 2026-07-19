@@ -133,6 +133,64 @@ public class CarService {
         car.setStatus(CarStatus.INACTIVE);
         carRepository.save(car);
     }
+
+    @Transactional
+    public CarResponse createCarByAdmin(Long userId, CreateCarRequest request) {
+        User user = userService.getUserEntityById(userId);
+
+        if (request.getLicensePlate() == null || request.getLicensePlate().isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "License plate is required"
+            );
+        }
+
+        if (request.getVehicleModelId() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Vehicle Model is required"
+            );
+        }
+
+        if (carRepository.existsByLicensePlateAndStatus(request.getLicensePlate(), CarStatus.ACTIVE)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "License plate already exists"
+            );
+        }
+
+        VehicleModel vehicleModel = vehicleModelRepository
+                .findById(request.getVehicleModelId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Vehicle model not found"
+                ));
+
+        Car car = Car.builder()
+                .user(user)
+                .licensePlate(request.getLicensePlate())
+                .vehicleModel(vehicleModel)
+                .status(CarStatus.ACTIVE)
+                .build();
+
+        Car savedCar = carRepository.save(car);
+        return CarResponse.fromCar(savedCar);
+    }
+
+    @Transactional
+    public void deleteCarByAdmin(Long userId, Long carId) {
+        // Validate user exists
+        userService.getUserEntityById(userId);
+
+        Car car = carRepository.findByIdAndUserIdAndStatus(carId, userId, CarStatus.ACTIVE)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Car not found or does not belong to this user"
+                ));
+
+        car.setStatus(CarStatus.INACTIVE);
+        carRepository.save(car);
+    }
 }
 
 

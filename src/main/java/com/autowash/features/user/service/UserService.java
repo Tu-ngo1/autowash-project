@@ -1,13 +1,14 @@
 package com.autowash.features.user.service;
 
 import com.autowash.features.car.entity.Car;
-
 import com.autowash.features.booking.entity.Booking;
-
 import com.autowash.features.user.dto.request.CreateStaffRequest;
 import com.autowash.features.user.dto.request.UpdateProfileRequest;
+import com.autowash.features.user.dto.request.UpdateUserByAdminRequest;
+import com.autowash.features.user.dto.request.UpdateUserPointsRequest;
 import com.autowash.features.user.dto.response.ProfileResponse;
 import com.autowash.features.user.dto.response.UserResponse;
+import com.autowash.features.user.dto.response.AdminUserDetailResponse;
 import com.autowash.features.user.entity.CustomerProfile;
 import com.autowash.features.user.entity.User;
 import com.autowash.features.car.enums.CarStatus;
@@ -19,6 +20,11 @@ import com.autowash.features.booking.repository.BookingRepository;
 import com.autowash.features.car.repository.CarRepository;
 import com.autowash.features.user.repository.CustomerProfileRepository;
 import com.autowash.features.user.repository.UserRepository;
+import com.autowash.features.wallet.repository.WalletRepository;
+import com.autowash.features.wallet.entity.Wallet;
+import com.autowash.features.user.repository.TierConfigRepository;
+import com.autowash.features.user.entity.TierConfig;
+import com.autowash.features.user.enums.TierLevel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -55,6 +61,8 @@ public class UserService {
     private final BookingRepository bookingRepository;
     private final PromotionRepository promotionRepository;
     private final CustomerVoucherRepository customerVoucherRepository;
+    private final WalletRepository walletRepository;
+    private final TierConfigRepository tierConfigRepository;
 
     public User getCurrentUserEntity() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -328,7 +336,7 @@ public class UserService {
         CustomerVoucher savedVoucher = customerVoucherRepository.save(customerVoucher);
 
         // 8. Trả về Response DTO tương thích với Frontend
-        return CustomerVoucherResponse.builder()
+        CustomerVoucherResponse response = CustomerVoucherResponse.builder()
                 .id(savedVoucher.getId())
                 .promotionId(promotion.getId())
                 .voucherCode(savedVoucher.getVoucherCode())
@@ -341,6 +349,128 @@ public class UserService {
                 .redeemedAt(savedVoucher.getRedeemedAt())
                 .expiredAt(savedVoucher.getExpiredAt())
                 .build();
+        return response;
+    }
+
+    public User getUserEntityById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy người dùng"));
+    }
+
+    public AdminUserDetailResponse getAdminUserDetail(Long userId) {
+        User user = getUserEntityById(userId);
+
+        CustomerProfile profile = user.getCustomerProfile();
+        String tier = profile != null && profile.getTierConfig() != null ? profile.getTierConfig().getTierLevel().name() : "MEMBER";
+        int tPoints = profile != null && profile.getTierPoints() != null ? profile.getTierPoints() : 0;
+        int rPoints = profile != null && profile.getRewardPoints() != null ? profile.getRewardPoints() : 0;
+
+        int walletBalance = walletRepository.findByUserId(userId)
+                .map(Wallet::getBalance)
+                .orElse(0);
+
+        List<CarResponse> vehicles = carRepository.findByUserIdAndStatus(userId, CarStatus.ACTIVE).stream()
+                .map(CarResponse::fromCar)
+                .toList();
+
+        return AdminUserDetailResponse.builder()
+                .id(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .username(user.getUsername())
+                .role(user.getRole().name())
+                .status(user.getStatus().name())
+                .tier(tier)
+                .tierPoints(tPoints)
+                .rewardPoints(rPoints)
+                .walletBalance(walletBalance)
+                .vehicles(vehicles)
+                .build();
+    }
+
+    @Transactional
+    public UserResponse updateUserByAdmin(Long userId, UpdateUserByAdminRequest request) {
+        User user = getUserEntityById(userId);
+
+        if (request.getFullName() == null || request.getFullName().trim().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Họ tên không được để trống");
+        }
+        if (request.getPhone() == null || request.getPhone().trim().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số điện thoại không được để trống");
+        }
+
+        String email = request.getEmail() != null ? request.getEmail().trim() : null;
+        String phone = request.getPhone().trim();
+
+        if (email != null && !email.isBlank() && !email.equalsIgnoreCase(user.getEmail())) {
+            if (userRepository.existsByEmail(email)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email đã tồn tại trong hệ thống");
+            }
+            user.setEmail(email);
+        }
+
+        if (!phone.equals(user.getPhone())) {
+            if (userRepository.existsByPhone(phone)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số điện thoại đã tồn tại trong hệ thống");
+            }
+            user.setPhone(phone);
+        }
+
+        user.setFullName(request.getFullName().trim());
+        User savedUser = userRepository.save(user);
+        return userMapper.toResponse(savedUser);
+    }
+
+    @Transactional
+    public UserResponse updatePointsAndRecalculateTier(Long userId, UpdateUserPointsRequest request) {
+        User user = getUserEntityById(userId);
+
+        if (user.getRole() != Role.CUSTOMER) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Người dùng này không phải là khách hàng");
+        }
+
+        CustomerProfile profile = customerProfileRepository.findByUser(user)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ của khách hàng"));
+
+        if (request.getRewardPoints() != null) {
+            profile.setRewardPoints(request.getRewardPoints());
+        } else if (request.getRedeemPointsDelta() != null) {
+            int currentRewardPoints = profile.getRewardPoints() != null ? profile.getRewardPoints() : 0;
+            profile.setRewardPoints(Math.max(0, currentRewardPoints + request.getRedeemPointsDelta()));
+        }
+
+        Integer newTierPoints = null;
+        if (request.getTierPoints() != null) {
+            newTierPoints = request.getTierPoints();
+        } else if (request.getRankPointsDelta() != null) {
+            int currentTierPoints = profile.getTierPoints() != null ? profile.getTierPoints() : 0;
+            newTierPoints = Math.max(0, currentTierPoints + request.getRankPointsDelta());
+        }
+
+        if (newTierPoints != null) {
+            profile.setTierPoints(newTierPoints);
+
+            final int finalPoints = newTierPoints;
+            List<TierConfig> configs = tierConfigRepository.findAll();
+            
+            TierConfig newTierConfig = configs.stream()
+                    .filter(tc -> tc.getActive() != null && tc.getActive())
+                    .filter(tc -> tc.getPointsToUpgrade() != null && finalPoints >= tc.getPointsToUpgrade())
+                    .max((tc1, tc2) -> Integer.compare(
+                            tc1.getPointsToUpgrade() != null ? tc1.getPointsToUpgrade() : 0,
+                            tc2.getPointsToUpgrade() != null ? tc2.getPointsToUpgrade() : 0
+                    ))
+                    .orElseGet(() -> configs.stream()
+                            .filter(tc -> tc.getTierLevel() == TierLevel.MEMBER)
+                            .findFirst()
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không tìm thấy cấu hình hạng MEMBER")));
+                            
+            profile.setTierConfig(newTierConfig);
+        }
+
+        customerProfileRepository.save(profile);
+        return userMapper.toResponse(user);
     }
 }
 

@@ -14,6 +14,7 @@ import com.autowash.features.user.service.UserService;
 import com.autowash.features.washservice.service.WashService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -113,5 +114,14 @@ public class StaffController {
     @PostMapping("/bookings/walk-in")
     public BookingResponse createWalkInBooking(@Valid @RequestBody WalkInBookingRequest request) {
         return bookingService.createWalkInBooking(request);
+    }
+
+    @PostMapping("/bookings/{id}/cancel-request")
+    public BookingResponse requestCancelBooking(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body
+    ) {
+        String reason = body.get("reason");
+        return bookingService.createCancelRequestByStaff(id, reason);
     }
 }

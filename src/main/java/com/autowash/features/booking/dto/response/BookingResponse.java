@@ -43,6 +43,11 @@ public class BookingResponse {
     private String tierLevel;
     private Integer discount;
     private List<BookingDetailResponse> details;
+    private String cancelRequestStatus;
+    private String cancelRequestReason;
+    private String cancelRequestedByName;
+    private LocalDateTime cancelRequestedAt;
+    private String cancelRequestAdminNote;
     private String checkoutUrl;
 }
 

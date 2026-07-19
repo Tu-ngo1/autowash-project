@@ -4,6 +4,7 @@ import com.autowash.features.car.entity.Car;
 import com.autowash.features.user.entity.User;
 
 import com.autowash.features.booking.enums.BookingStatus;
+import com.autowash.features.booking.enums.CancelRequestStatus;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -108,6 +109,23 @@ public class Booking {
     @ManyToOne
     @JoinColumn(name = "Staff_id")
     private User staff;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cancel_request_status")
+    private CancelRequestStatus cancelRequestStatus;
+
+    @Column(name = "cancel_request_reason", columnDefinition = "TEXT")
+    private String cancelRequestReason;
+
+    @ManyToOne
+    @JoinColumn(name = "cancel_requested_by")
+    private User cancelRequestedBy;
+
+    @Column(name = "cancel_requested_at")
+    private LocalDateTime cancelRequestedAt;
+
+    @Column(name = "cancel_request_admin_note", columnDefinition = "TEXT")
+    private String cancelRequestAdminNote;
 
     @Column(name = "Created_at")
     private LocalDateTime createdAt;

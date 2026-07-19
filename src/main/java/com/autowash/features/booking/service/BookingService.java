@@ -39,6 +39,13 @@ import com.autowash.features.booking.repository.DailyOperationsConfigRepository;
 import com.autowash.features.booking.dto.response.AvailableSlotResponse;
 import com.autowash.features.booking.dto.response.BusinessHoursResponse;
 import com.autowash.features.booking.dto.response.WashBayResponse;
+import com.autowash.features.booking.dto.response.AdminBookingListResponse;
+import com.autowash.features.booking.enums.CancelRequestStatus;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Page;
 
 import com.autowash.features.promotion.entity.CustomerVoucher;
 import com.autowash.features.promotion.entity.Promotion;
@@ -512,6 +519,10 @@ public class BookingService {
                              normalized, normalized.length());
                     return new ResponseStatusException(HttpStatus.NOT_FOUND, "Mã QR không hợp lệ");
                 });
+
+        if (booking.getCancelRequestStatus() == CancelRequestStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đơn đặt lịch đang ở trạng thái chờ duyệt hủy");
+        }
 
         if (Boolean.TRUE.equals(booking.getQrUsed())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã QR đã được sử dụng");
@@ -1113,6 +1124,10 @@ public class BookingService {
     public BookingResponse assignBookingToBay(Long bookingId, Integer bayNumber) {
         Booking booking = findBookingOrThrow(bookingId);
 
+        if (booking.getCancelRequestStatus() == CancelRequestStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đơn đặt lịch đang ở trạng thái chờ duyệt hủy");
+        }
+
         if (booking.getStatus() != BookingStatus.ARRIVED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lịch hẹn phải ở trạng thái đã check-in (ARRIVED) mới có thể cho vào khoang.");
         }
@@ -1173,6 +1188,184 @@ public class BookingService {
         booking.setWashStartedAt(LocalDateTime.now());
 
         return bookingMapper.toResponse(bookingRepository.save(booking));
+    }
+
+    public AdminBookingListResponse getAdminBookingsWithFilters(
+            int page,
+            int limit,
+            BookingStatus status,
+            CancelRequestStatus cancelRequestStatus,
+            String search,
+            String startDate,
+            String endDate
+    ) {
+        Specification<Booking> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+
+            if (cancelRequestStatus != null) {
+                predicates.add(cb.equal(root.get("cancelRequestStatus"), cancelRequestStatus));
+            }
+
+            if (search != null && !search.trim().isEmpty()) {
+                String pattern = "%" + search.trim().toLowerCase() + "%";
+                Predicate searchPredicate = cb.or(
+                        cb.like(cb.lower(root.get("bookingCode")), pattern),
+                        cb.like(cb.lower(root.get("user").get("fullName")), pattern),
+                        cb.like(cb.lower(root.get("user").get("email")), pattern),
+                        cb.like(cb.lower(root.get("user").get("phone")), pattern),
+                        cb.like(cb.lower(root.get("vehicle").get("licensePlate")), pattern)
+                );
+                predicates.add(searchPredicate);
+            }
+
+            if (startDate != null && !startDate.trim().isEmpty()) {
+                try {
+                    LocalDate start = LocalDate.parse(startDate.trim());
+                    predicates.add(cb.greaterThanOrEqualTo(root.get("scheduledStartTime"), start.atStartOfDay()));
+                } catch (Exception e) {
+                    // Ignore invalid date format
+                }
+            }
+
+            if (endDate != null && !endDate.trim().isEmpty()) {
+                try {
+                    LocalDate end = LocalDate.parse(endDate.trim());
+                    predicates.add(cb.lessThanOrEqualTo(root.get("scheduledStartTime"), end.atTime(LocalTime.MAX)));
+                } catch (Exception e) {
+                    // Ignore invalid date format
+                }
+            }
+
+            query.distinct(true);
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        PageRequest pageRequest = PageRequest.of(page - 1, limit, Sort.by(Sort.Direction.DESC, "scheduledStartTime"));
+        Page<Booking> bookingPage = bookingRepository.findAll(spec, pageRequest);
+
+        List<BookingResponse> responses = bookingPage.getContent().stream()
+                .map(bookingMapper::toResponse)
+                .toList();
+
+        return AdminBookingListResponse.builder()
+                .bookings(responses)
+                .total(bookingPage.getTotalElements())
+                .build();
+    }
+
+    @Transactional
+    public BookingResponse createCancelRequestByStaff(Long bookingId, String reason) {
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lý do đề xuất hủy không được để trống");
+        }
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn đặt lịch"));
+
+        if (booking.getStatus() != BookingStatus.PENDING && 
+            booking.getStatus() != BookingStatus.CONFIRM && 
+            booking.getStatus() != BookingStatus.ARRIVED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể gửi yêu cầu hủy cho đơn hàng đã rửa hoặc hoàn tất");
+        }
+
+        if (booking.getCancelRequestStatus() == CancelRequestStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đơn hàng này đã có yêu cầu hủy đang chờ duyệt");
+        }
+
+        User staffUser = userService.getCurrentUserEntity();
+
+        booking.setCancelRequestStatus(CancelRequestStatus.PENDING);
+        booking.setCancelRequestReason(reason.trim());
+        booking.setCancelRequestedBy(staffUser);
+        booking.setCancelRequestedAt(LocalDateTime.now());
+
+        Booking saved = bookingRepository.save(booking);
+        return bookingMapper.toResponse(saved);
+    }
+
+    @Transactional
+    public BookingResponse approveCancelRequest(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn đặt lịch"));
+
+        if (booking.getCancelRequestStatus() != CancelRequestStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đơn hàng này không ở trạng thái chờ duyệt hủy");
+        }
+
+        booking.setCancelRequestStatus(CancelRequestStatus.APPROVED);
+        booking.setStatus(BookingStatus.CANCELLED);
+
+        if (booking.getPayment() != null) {
+            Payment payment = booking.getPayment();
+            payment.setPaymentStatus(PaymentStatus.REFUNDED);
+            paymentRepository.save(payment);
+        }
+
+        Booking saved = bookingRepository.save(booking);
+        processRefund(saved, 1.0);
+
+        return bookingMapper.toResponse(saved);
+    }
+
+    @Transactional
+    public BookingResponse rejectCancelRequest(Long bookingId, String adminNote) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn đặt lịch"));
+
+        if (booking.getCancelRequestStatus() != CancelRequestStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đơn hàng này không ở trạng thái chờ duyệt hủy");
+        }
+
+        booking.setCancelRequestStatus(CancelRequestStatus.REJECTED);
+        booking.setCancelRequestAdminNote(adminNote);
+
+        Booking saved = bookingRepository.save(booking);
+        return bookingMapper.toResponse(saved);
+    }
+
+    @Transactional
+    public BookingResponse updateBookingStatusByAdmin(Long bookingId, BookingStatus status) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn đặt lịch"));
+
+        BookingStatus oldStatus = booking.getStatus();
+        booking.setStatus(status);
+
+        if (status == BookingStatus.CANCELLED && oldStatus != BookingStatus.CANCELLED) {
+            if (booking.getPayment() != null) {
+                Payment payment = booking.getPayment();
+                payment.setPaymentStatus(PaymentStatus.REFUNDED);
+                paymentRepository.save(payment);
+            }
+            processRefund(booking, 1.0);
+        }
+
+        Booking saved = bookingRepository.save(booking);
+        return bookingMapper.toResponse(saved);
+    }
+
+    @Transactional
+    public void deleteBookingByAdmin(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn đặt lịch"));
+
+        if (booking.getStatus() == BookingStatus.COMPLETED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể hủy đơn đặt lịch đã hoàn thành");
+        }
+
+        if (booking.getStatus() != BookingStatus.CANCELLED) {
+            booking.setStatus(BookingStatus.CANCELLED);
+            if (booking.getPayment() != null) {
+                Payment payment = booking.getPayment();
+                payment.setPaymentStatus(PaymentStatus.REFUNDED);
+                paymentRepository.save(payment);
+            }
+            bookingRepository.save(booking);
+            processRefund(booking, 1.0);
+        }
     }
 }
 

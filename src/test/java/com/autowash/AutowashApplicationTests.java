@@ -356,6 +356,53 @@ class AutowashApplicationTests {
             customerProfileRepository.save(profile);
         }
     }
+
+    @Test
+    void testTierDowngradeWhenPointsDecrease() {
+        // 1. Lấy thông tin CustomerProfile của user 4L
+        User user = userRepository.findById(4L).orElseThrow();
+        CustomerProfile profile = customerProfileRepository.findByUser(user).orElseThrow();
+        
+        int originalPoints = profile.getRewardPoints() != null ? profile.getRewardPoints() : 0;
+        int originalTierPoints = profile.getTierPoints() != null ? profile.getTierPoints() : 0;
+        TierConfig originalTier = profile.getTierConfig();
+
+        try {
+            // Cập nhật điểm hạng lên 5000 (được lên GOLD nếu GOLD là 3000)
+            com.autowash.features.user.dto.request.UpdateUserPointsRequest reqUp = new com.autowash.features.user.dto.request.UpdateUserPointsRequest();
+            reqUp.setTierPoints(5000);
+            userService.updatePointsAndRecalculateTier(4L, reqUp);
+
+            CustomerProfile upProfile = customerProfileRepository.findByUser(user).orElseThrow();
+            assertEquals(5000, upProfile.getTierPoints());
+            assertEquals(com.autowash.features.user.enums.TierLevel.GOLD, upProfile.getTierConfig().getTierLevel());
+
+            // Giảm điểm hạng xuống 1500 (rớt xuống SILVER vì SILVER là 1000)
+            com.autowash.features.user.dto.request.UpdateUserPointsRequest reqDown = new com.autowash.features.user.dto.request.UpdateUserPointsRequest();
+            reqDown.setTierPoints(1500);
+            userService.updatePointsAndRecalculateTier(4L, reqDown);
+
+            CustomerProfile downProfile = customerProfileRepository.findByUser(user).orElseThrow();
+            assertEquals(1500, downProfile.getTierPoints());
+            assertEquals(com.autowash.features.user.enums.TierLevel.SILVER, downProfile.getTierConfig().getTierLevel());
+
+            // Giảm điểm hạng xuống 500 (rớt xuống MEMBER vì MEMBER là 0)
+            com.autowash.features.user.dto.request.UpdateUserPointsRequest reqDownMember = new com.autowash.features.user.dto.request.UpdateUserPointsRequest();
+            reqDownMember.setTierPoints(500);
+            userService.updatePointsAndRecalculateTier(4L, reqDownMember);
+
+            CustomerProfile memberProfile = customerProfileRepository.findByUser(user).orElseThrow();
+            assertEquals(500, memberProfile.getTierPoints());
+            assertEquals(com.autowash.features.user.enums.TierLevel.MEMBER, memberProfile.getTierConfig().getTierLevel());
+
+        } finally {
+            // Khôi phục điểm gốc
+            profile.setRewardPoints(originalPoints);
+            profile.setTierPoints(originalTierPoints);
+            profile.setTierConfig(originalTier);
+            customerProfileRepository.save(profile);
+        }
+    }
 }
 
 

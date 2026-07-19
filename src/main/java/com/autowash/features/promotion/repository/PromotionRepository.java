@@ -41,6 +41,8 @@ public interface PromotionRepository extends JpaRepository<Promotion, Long> {
         ORDER BY COUNT(pay) DESC, promo.id DESC
     """)
     List<TopUsedVoucherResponse> findTopVoucher();
+
+    boolean existsByVoucherCode(String voucherCode);
 }
 
 
