@@ -1,6 +1,7 @@
 package com.autowash.features.booking.service;
 
 import com.autowash.features.user.service.UserService;
+import com.autowash.features.user.dto.request.UpdateUserPointsRequest;
 import com.autowash.features.washservice.service.WashService;
 import com.autowash.features.booking.dto.request.CreateBookingRequest;
 import com.autowash.features.booking.dto.request.UpdateBookingStatusRequest;
@@ -386,6 +387,12 @@ public class BookingService {
                 .mapToInt(ServicePrice::getPrice)
                 .sum();
                 
+        int totalDuration = selectedPrices.stream()
+                .mapToInt(ServicePrice::getDurationMinutes)
+                .sum();
+        
+        validateSlotAvailable(request.getScheduledStartTime(), totalDuration);
+                
         // Áp dụng chiết khấu hạng thành viên (nếu có)
         int tierDiscount = 0;
         CustomerProfile profile = customer.getCustomerProfile();
@@ -399,9 +406,7 @@ public class BookingService {
         // 4. Tạo Booking & Payment
         String bookingCode = generateBookingCode();
         String qrContent = qrCodeService.generateQrContent(bookingCode);
-        LocalDateTime expectedEndTime = request.getScheduledStartTime().plusMinutes(
-                selectedPrices.stream().mapToInt(ServicePrice::getDurationMinutes).sum()
-        );
+        LocalDateTime expectedEndTime = request.getScheduledStartTime().plusMinutes(totalDuration);
         
         Booking booking = Booking.builder()
                 .bookingCode(bookingCode)
@@ -599,6 +604,9 @@ public class BookingService {
                 payment.setPaymentStatus(PaymentStatus.PAID);
                 payment.setPaidAt(LocalDateTime.now());
                 paymentRepository.save(payment);
+            }
+            if (nextStatus == BookingStatus.COMPLETED && currentStatus != BookingStatus.COMPLETED) {
+                awardPointsForCompletedBooking(booking);
             }
         }
 
@@ -1331,14 +1339,36 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn đặt lịch"));
 
-        if (booking.getStatus() == BookingStatus.COMPLETED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể chỉnh sửa trạng thái của đơn đặt lịch đã hoàn thành");
+        if (booking.getStatus() == BookingStatus.COMPLETED || booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể chỉnh sửa trạng thái của đơn đặt lịch đã kết thúc (Hoàn thành hoặc Hủy)");
         }
 
         BookingStatus oldStatus = booking.getStatus();
         booking.setStatus(status);
 
-        if (status == BookingStatus.CANCELLED && oldStatus != BookingStatus.CANCELLED) {
+        if (status == BookingStatus.ARRIVED) {
+            booking.setQrUsed(true);
+            if (booking.getArrivedAt() == null) {
+                booking.setArrivedAt(LocalDateTime.now());
+            }
+        } else if (status == BookingStatus.IN_PROGRESS) {
+            if (booking.getWashStartedAt() == null) {
+                booking.setWashStartedAt(LocalDateTime.now());
+            }
+        } else if (status == BookingStatus.WASHED || status == BookingStatus.COMPLETED) {
+            if (booking.getCompletedAt() == null) {
+                booking.setCompletedAt(LocalDateTime.now());
+            }
+            if (booking.getPayment() != null && booking.getPayment().getPaymentStatus() == PaymentStatus.PENDING) {
+                Payment payment = booking.getPayment();
+                payment.setPaymentStatus(PaymentStatus.PAID);
+                payment.setPaidAt(LocalDateTime.now());
+                paymentRepository.save(payment);
+            }
+            if (status == BookingStatus.COMPLETED && oldStatus != BookingStatus.COMPLETED) {
+                awardPointsForCompletedBooking(booking);
+            }
+        } else if (status == BookingStatus.CANCELLED && oldStatus != BookingStatus.CANCELLED) {
             if (booking.getPayment() != null) {
                 Payment payment = booking.getPayment();
                 payment.setPaymentStatus(PaymentStatus.REFUNDED);
@@ -1369,6 +1399,23 @@ public class BookingService {
             }
             bookingRepository.save(booking);
             processRefund(booking, 1.0);
+        }
+    }
+
+    private void awardPointsForCompletedBooking(Booking booking) {
+        if (booking.getUser() != null && booking.getUser().getRole() == Role.CUSTOMER) {
+            Payment payment = booking.getPayment();
+            if (payment != null && payment.getFinalPrice() != null) {
+                int earnedPoints = payment.getFinalPrice() / 1000;
+                if (earnedPoints > 0) {
+                    UpdateUserPointsRequest pointsRequest = new UpdateUserPointsRequest();
+                    pointsRequest.setRankPointsDelta(earnedPoints);
+                    pointsRequest.setRedeemPointsDelta(earnedPoints);
+                    userService.updatePointsAndRecalculateTier(booking.getUser().getId(), pointsRequest);
+                    log.info("Successfully awarded {} points to user {} for completing booking {}", 
+                            earnedPoints, booking.getUser().getId(), booking.getBookingCode());
+                }
+            }
         }
     }
 }
