@@ -118,7 +118,7 @@ public class UserService {
                 .stream()
                 .map(user -> {
                     Long userId = user.getId();
-                    int carCount = carRepository.countByUserId(userId);
+                    int carCount = carRepository.countByUserIdAndStatus(userId, CarStatus.ACTIVE);
                     int bookingCount = bookingRepository.countByUserId(userId);
                     return userMapper.toAdminUserResponse(user, carCount, bookingCount);
                 })
@@ -357,6 +357,7 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy người dùng"));
     }
 
+    @Transactional(readOnly = true)
     public AdminUserDetailResponse getAdminUserDetail(Long userId) {
         User user = getUserEntityById(userId);
 
@@ -365,7 +366,7 @@ public class UserService {
         int tPoints = profile != null && profile.getTierPoints() != null ? profile.getTierPoints() : 0;
         int rPoints = profile != null && profile.getRewardPoints() != null ? profile.getRewardPoints() : 0;
 
-        int walletBalance = walletRepository.findByUserId(userId)
+        int walletBalance = walletRepository.findWalletByUserId(userId)
                 .map(Wallet::getBalance)
                 .orElse(0);
 
@@ -456,10 +457,10 @@ public class UserService {
             
             TierConfig newTierConfig = configs.stream()
                     .filter(tc -> tc.getActive() != null && tc.getActive())
-                    .filter(tc -> tc.getPointsToUpgrade() != null && finalPoints >= tc.getPointsToUpgrade())
+                    .filter(tc -> tc.getPointsToMaintain() != null && finalPoints >= tc.getPointsToMaintain())
                     .max((tc1, tc2) -> Integer.compare(
-                            tc1.getPointsToUpgrade() != null ? tc1.getPointsToUpgrade() : 0,
-                            tc2.getPointsToUpgrade() != null ? tc2.getPointsToUpgrade() : 0
+                            tc1.getPointsToMaintain() != null ? tc1.getPointsToMaintain() : 0,
+                            tc2.getPointsToMaintain() != null ? tc2.getPointsToMaintain() : 0
                     ))
                     .orElseGet(() -> configs.stream()
                             .filter(tc -> tc.getTierLevel() == TierLevel.MEMBER)
