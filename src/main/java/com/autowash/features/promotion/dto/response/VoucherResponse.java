@@ -26,6 +26,7 @@ public class VoucherResponse {
     private Boolean isActive;
     private String discountType;
     private Object discountValue; // Có thể dùng Double/Integer hoặc BigDecimal
+    private Integer maxDiscountAmount;
 }
 
 

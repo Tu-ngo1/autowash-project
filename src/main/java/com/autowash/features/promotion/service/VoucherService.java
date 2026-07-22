@@ -46,6 +46,14 @@ public class VoucherService {
         TierConfig tierConfig = tierConfigRepository.findById(tierLevel)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy cấu hình hạng"));
 
+        Boolean activeStatus = request.getIsActive();
+        if (activeStatus == null) {
+            activeStatus = request.getActive();
+        }
+        if (activeStatus == null) {
+            activeStatus = true;
+        }
+
         Promotion promotion = Promotion.builder()
                 .voucherCode(request.getVoucherCode().trim())
                 .campaignName(request.getCampaignName().trim())
@@ -56,7 +64,7 @@ public class VoucherService {
                 .maxDiscountAmount(request.getMaxDiscountAmount())
                 .startAt(request.getStartAt())
                 .endAt(request.getEndAt())
-                .active(true)
+                .active(activeStatus)
                 .build();
 
         Promotion saved = promotionRepository.save(promotion);

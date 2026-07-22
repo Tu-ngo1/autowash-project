@@ -13,6 +13,8 @@ public class CreateVoucherRequest {
     private Integer discountAmount;
     private BigDecimal discountPercent;
     private Integer maxDiscountAmount;
+    private Boolean isActive;
+    private Boolean active;
     private LocalDateTime startAt;
     private LocalDateTime endAt;
 }

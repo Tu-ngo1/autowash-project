@@ -40,7 +40,8 @@ public class VoucherMapper {
                 promotion.getEndAt(),
                 promotion.getActive(),
                 discountType,
-                discountValue
+                discountValue,
+                promotion.getMaxDiscountAmount()
         );
     }
 }
