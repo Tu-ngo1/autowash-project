@@ -914,29 +914,55 @@ public class BookingService {
 
     @Transactional
     public void processRefund(Booking booking, double refundRate) {
+        processRefund(booking, refundRate, null);
+    }
+
+    @Transactional
+    public void processRefund(Booking booking, double refundRate, String customReason) {
         Payment payment = booking.getPayment();
-        if (payment == null || payment.getPaymentStatus() != PaymentStatus.PAID) {
-            return; // Chưa trả tiền thì không cần hoàn
+        if (payment == null) {
+            return;
         }
 
-        if (payment.getPaymentMethod() == PaymentMethod.WALLET || payment.getPaymentMethod() == PaymentMethod.PAYOS) {
+        // 1. Kiểm tra xác thực tức thời với PayOS nếu thanh toán PayOS đang ở trạng thái PENDING
+        if (payment.getPaymentMethod() == PaymentMethod.PAYOS && payment.getPaymentStatus() == PaymentStatus.PENDING) {
+            try {
+                vn.payos.model.v2.paymentRequests.PaymentLink paymentLink = payOS.paymentRequests().get(booking.getId());
+                if (vn.payos.model.v2.paymentRequests.PaymentLinkStatus.PAID.equals(paymentLink.getStatus())) {
+                    payment.setPaymentStatus(PaymentStatus.PAID);
+                    payment.setPaidAt(LocalDateTime.now());
+                    paymentRepository.save(payment);
+                }
+            } catch (Exception e) {
+                log.warn("Không thể kiểm tra PayOS status khi hoàn tiền: {}", e.getMessage());
+            }
+        }
+
+        // 2. Chỉ hoàn tiền nếu giao dịch đã được thanh toán thành công (PAID)
+        if (payment.getPaymentStatus() == PaymentStatus.PAID) {
             Long userId = booking.getUser().getId();
             int originalPrice = payment.getFinalPrice();
             int refundAmount = (int) Math.round(originalPrice * refundRate);
 
-            // 1. Tìm ví của user
+            // Tự động khởi tạo ví người dùng nếu chưa có trong DB
             Wallet wallet = walletRepository.findByUserId(userId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không tìm thấy ví người dùng"));
+                    .orElseGet(() -> walletRepository.save(
+                            Wallet.builder()
+                                    .user(booking.getUser())
+                                    .balance(0)
+                                    .build()
+                    ));
 
-            // 2. Cộng lại số tiền hoàn
+            // Cộng tiền vào ví
             wallet.setBalance(wallet.getBalance() + refundAmount);
             walletRepository.save(wallet);
 
-            // 3. Ghi lịch sử giao dịch ví
+            // Ghi nhận giao dịch hoàn tiền vào ví
+            String reasonText = customReason != null ? customReason : (refundRate == 1.0 ? "hủy lịch" : "đến trễ quá 15 phút");
             String note = String.format("Hoàn tiền %.0f%% lịch hẹn %s do %s", 
                     refundRate * 100, 
                     booking.getBookingCode(), 
-                    refundRate == 1.0 ? "hủy lịch sớm" : "đến trễ quá 15 phút");
+                    reasonText);
                     
             WalletTransaction transaction = WalletTransaction.builder()
                     .wallet(wallet)
@@ -946,9 +972,17 @@ public class BookingService {
                     .build();
             walletTransactionRepository.save(transaction);
 
-            // 4. Đổi trạng thái hóa đơn
+            // Cập nhật trạng thái hóa đơn
             payment.setPaymentStatus(PaymentStatus.REFUNDED);
             paymentRepository.save(payment);
+        }
+
+        // 3. Hoàn trả Voucher lại trạng thái AVAILABLE nếu có sử dụng
+        if (payment.getAppliedVoucher() != null) {
+            CustomerVoucher voucher = payment.getAppliedVoucher();
+            voucher.setStatus(VoucherStatus.AVAILABLE);
+            voucher.setUsedAt(null);
+            customerVoucherRepository.save(voucher);
         }
     }
 

@@ -62,7 +62,7 @@ public class OperationsConfigService {
                     for (Booking booking : activeBookings) {
                         booking.setStatus(BookingStatus.CANCELLED);
                         bookingRepository.save(booking);
-                        bookingService.processRefund(booking, 1.0); // Hoàn tiền 100%
+                        bookingService.processRefund(booking, 1.0, "cửa hàng đóng cửa / điều chỉnh khung giờ"); // Hoàn tiền 100%
                     }
                 }
             }
@@ -136,7 +136,7 @@ public class OperationsConfigService {
                 for (Booking booking : affectedBookings) {
                     booking.setStatus(BookingStatus.CANCELLED);
                     bookingRepository.save(booking);
-                    bookingService.processRefund(booking, 1.0); // Hoàn tiền 100%
+                    bookingService.processRefund(booking, 1.0, "cửa hàng đóng cửa / điều chỉnh khung giờ"); // Hoàn tiền 100%
                 }
             }
         }
