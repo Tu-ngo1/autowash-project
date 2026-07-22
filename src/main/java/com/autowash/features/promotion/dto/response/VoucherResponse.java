@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -25,7 +26,9 @@ public class VoucherResponse {
     private LocalDateTime endDate;
     private Boolean isActive;
     private String discountType;
-    private Object discountValue; // Có thể dùng Double/Integer hoặc BigDecimal
+    private Object discountValue;
+    private BigDecimal discountPercent;
+    private Integer discountAmount;
     private Integer maxDiscountAmount;
 }
 

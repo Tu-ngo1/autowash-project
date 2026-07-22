@@ -13,10 +13,10 @@ public class VoucherMapper {
         String discountType = "fixed";
         Object discountValue = 0;
         if (promotion.getDiscountPercent() != null) {
-            discountType = "Percent";
+            discountType = "percentage";
             discountValue = promotion.getDiscountPercent();
         } else if (promotion.getDiscountAmount() != null) {
-            discountType = "Fixed";
+            discountType = "fixed";
             discountValue = promotion.getDiscountAmount();
         }
 
@@ -30,19 +30,21 @@ public class VoucherMapper {
             }
         }
 
-        return new VoucherResponse(
-                promotion.getId(),
-                promotion.getCampaignName(),
-                promotion.getVoucherCode(),
-                promotion.getPointCost(),
-                targetTier,
-                promotion.getStartAt(),
-                promotion.getEndAt(),
-                promotion.getActive(),
-                discountType,
-                discountValue,
-                promotion.getMaxDiscountAmount()
-        );
+        return VoucherResponse.builder()
+                .id(promotion.getId())
+                .name(promotion.getCampaignName())
+                .code(promotion.getVoucherCode())
+                .pointsRequired(promotion.getPointCost())
+                .tier(targetTier)
+                .startDate(promotion.getStartAt())
+                .endDate(promotion.getEndAt())
+                .isActive(promotion.getActive())
+                .discountType(discountType)
+                .discountValue(discountValue)
+                .discountPercent(promotion.getDiscountPercent())
+                .discountAmount(promotion.getDiscountAmount())
+                .maxDiscountAmount(promotion.getMaxDiscountAmount())
+                .build();
     }
 }
 
