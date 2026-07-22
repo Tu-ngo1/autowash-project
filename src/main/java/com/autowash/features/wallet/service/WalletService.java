@@ -69,12 +69,15 @@ public class WalletService {
         long orderCode = 6000000000000000L + (user.getId() * 10000000000L) + ((long) amount * 100L) + unique;
 
         try {
+            String effectiveReturnUrl = getEffectiveUrl(returnUrl, "/payment-success");
+            String effectiveCancelUrl = getEffectiveUrl(cancelUrl, "/payment-failed");
+
             CreatePaymentLinkRequest payosRequest = CreatePaymentLinkRequest.builder()
                     .orderCode(orderCode)
                     .amount(payosTestMode ? payosTestAmount : (long) amount)
                     .description("Nap vi " + user.getId())
-                    .returnUrl(returnUrl)
-                    .cancelUrl(cancelUrl)
+                    .returnUrl(effectiveReturnUrl)
+                    .cancelUrl(effectiveCancelUrl)
                     .build();
 
             CreatePaymentLinkResponse payosResponse = payOS.paymentRequests().create(payosRequest);
@@ -190,5 +193,30 @@ public class WalletService {
                     "Không thể xác thực trạng thái thanh toán nạp tiền ví với PayOS: " + e.getMessage()
             );
         }
+    }
+
+    private String getEffectiveUrl(String defaultUrl, String path) {
+        try {
+            org.springframework.web.context.request.ServletRequestAttributes attrs =
+                    (org.springframework.web.context.request.ServletRequestAttributes)
+                            org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+            if (attrs != null) {
+                jakarta.servlet.http.HttpServletRequest req = attrs.getRequest();
+                String origin = req.getHeader("Origin");
+                if (origin == null || origin.isBlank()) {
+                    String referer = req.getHeader("Referer");
+                    if (referer != null && !referer.isBlank()) {
+                        java.net.URI uri = java.net.URI.create(referer);
+                        origin = uri.getScheme() + "://" + uri.getAuthority();
+                    }
+                }
+                if (origin != null && !origin.isBlank()) {
+                    return origin.replaceAll("/+$", "") + path;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not determine dynamic request origin for PayOS returnUrl: {}", e.getMessage());
+        }
+        return defaultUrl;
     }
 }
