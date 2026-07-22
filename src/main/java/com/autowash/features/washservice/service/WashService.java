@@ -134,8 +134,9 @@ public class WashService {
     }
 
     public List<AvailableServiceResponse> getServicesByVehicleSize(VehicleSize size) {
-        return servicePriceRepository.findByVehicleSizeAndActiveTrue(size)
+        return servicePriceRepository.findByVehicleSizeAndActiveTrueAndServiceActiveTrue(size)
                 .stream()
+                .filter(price -> price.getService() != null && Boolean.TRUE.equals(price.getService().getActive()))
                 .map(price -> AvailableServiceResponse.builder()
                         .serviceId(price.getService().getId())
                         .serviceName(price.getService().getName())
@@ -249,6 +250,12 @@ public class WashService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Dịch vụ không tồn tại"));
         service.setActive(false);
         serviceRepository.save(service);
+
+        List<ServicePrice> prices = servicePriceRepository.findByServiceId(id);
+        for (ServicePrice price : prices) {
+            price.setActive(false);
+            servicePriceRepository.save(price);
+        }
     }
 
     @Transactional
@@ -257,6 +264,13 @@ public class WashService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Dịch vụ không tồn tại"));
         service.setActive(active);
         Service saved = serviceRepository.save(service);
+
+        List<ServicePrice> prices = servicePriceRepository.findByServiceId(id);
+        for (ServicePrice price : prices) {
+            price.setActive(active);
+            servicePriceRepository.save(price);
+        }
+
         return mapToAdminResponse(saved);
     }
 
