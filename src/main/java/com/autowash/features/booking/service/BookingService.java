@@ -1221,7 +1221,6 @@ public class BookingService {
             if (search != null && !search.trim().isEmpty()) {
                 String pattern = "%" + search.trim().toLowerCase() + "%";
                 Predicate searchPredicate = cb.or(
-                        cb.like(cb.lower(root.get("bookingCode")), pattern),
                         cb.like(cb.lower(root.get("user").get("fullName")), pattern),
                         cb.like(cb.lower(root.get("user").get("email")), pattern),
                         cb.like(cb.lower(root.get("user").get("phone")), pattern),
@@ -1332,6 +1331,11 @@ public class BookingService {
 
         booking.setCancelRequestStatus(CancelRequestStatus.REJECTED);
         booking.setCancelRequestAdminNote(adminNote);
+
+        // Bác bỏ yêu cầu hủy -> Đơn đặt lịch quay lại trạng thái xác nhận hoạt động bình thường, tuyệt đối không chuyển thành CANCELLED
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            booking.setStatus(BookingStatus.CONFIRM);
+        }
 
         Booking saved = bookingRepository.save(booking);
         return bookingMapper.toResponse(saved);
