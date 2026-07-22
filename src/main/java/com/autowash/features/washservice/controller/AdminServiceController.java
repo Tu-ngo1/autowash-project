@@ -48,8 +48,19 @@ public class AdminServiceController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<AdminServiceResponse> patchServiceStatus(
             @PathVariable Long id,
-            @RequestParam Boolean active
+            @RequestParam(name = "active", required = false) Boolean activeParam,
+            @RequestBody(required = false) java.util.Map<String, Boolean> body
     ) {
+        Boolean active = activeParam;
+        if (active == null && body != null) {
+            active = body.get("active");
+            if (active == null) {
+                active = body.get("isActive");
+            }
+        }
+        if (active == null) {
+            active = true;
+        }
         AdminServiceResponse saved = washService.patchServiceStatus(id, active);
         return ResponseEntity.ok(saved);
     }
