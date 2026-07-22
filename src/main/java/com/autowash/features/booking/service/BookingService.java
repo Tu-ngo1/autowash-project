@@ -1295,7 +1295,29 @@ public class BookingService {
         Page<Booking> bookingPage = bookingRepository.findAll(spec, pageRequest);
 
         List<BookingResponse> responses = bookingPage.getContent().stream()
-                .map(bookingMapper::toResponse)
+                .map(booking -> {
+                    if (booking.getPayment() != null 
+                            && PaymentMethod.PAYOS.equals(booking.getPayment().getPaymentMethod())
+                            && PaymentStatus.PENDING.equals(booking.getPayment().getPaymentStatus())) {
+                        try {
+                            vn.payos.model.v2.paymentRequests.PaymentLink paymentLink = payOS.paymentRequests().get(booking.getId());
+                            if (vn.payos.model.v2.paymentRequests.PaymentLinkStatus.PAID.equals(paymentLink.getStatus())) {
+                                Payment payment = booking.getPayment();
+                                payment.setPaymentStatus(PaymentStatus.PAID);
+                                payment.setPaidAt(LocalDateTime.now());
+                                paymentRepository.save(payment);
+
+                                if (booking.getStatus() == BookingStatus.PENDING) {
+                                    booking.setStatus(BookingStatus.CONFIRM);
+                                    bookingRepository.save(booking);
+                                }
+                            }
+                        } catch (Exception e) {
+                            log.warn("Auto PayOS check skipped for booking {}: {}", booking.getId(), e.getMessage());
+                        }
+                    }
+                    return bookingMapper.toResponse(booking);
+                })
                 .toList();
 
         return AdminBookingListResponse.builder()
@@ -1419,16 +1441,11 @@ public class BookingService {
             User currentAdmin = userService.getCurrentUserEntity();
             booking.setCancelRequestedBy(currentAdmin);
             booking.setCancelRequestedAt(LocalDateTime.now());
-            if (note != null && !note.trim().isEmpty()) {
-                booking.setCancelRequestReason(note.trim());
-                booking.setCancelRequestAdminNote(note.trim());
-            }
-            if (booking.getPayment() != null) {
-                Payment payment = booking.getPayment();
-                payment.setPaymentStatus(PaymentStatus.REFUNDED);
-                paymentRepository.save(payment);
-            }
-            processRefund(booking, 1.0);
+            String refundReason = (note != null && !note.trim().isEmpty()) ? note.trim() : "Admin hủy đơn trực tiếp";
+            booking.setCancelRequestReason(refundReason);
+            booking.setCancelRequestAdminNote(refundReason);
+            
+            processRefund(booking, 1.0, refundReason);
         }
 
         Booking saved = bookingRepository.save(booking);
