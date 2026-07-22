@@ -90,7 +90,10 @@ public class AdminController {
             @RequestBody Map<String, String> body
     ) {
         BookingStatus status = BookingStatus.valueOf(body.get("status").toUpperCase());
-        return bookingService.updateBookingStatusByAdmin(id, status);
+        String note = body.get("note");
+        if (note == null) note = body.get("adminNote");
+        if (note == null) note = body.get("reason");
+        return bookingService.updateBookingStatusByAdmin(id, status, note);
     }
 
     @DeleteMapping("/bookings/{id}")
@@ -100,16 +103,20 @@ public class AdminController {
     }
 
     @PostMapping("/bookings/{id}/cancel-request/approve")
-    public BookingResponse approveCancelRequest(@PathVariable Long id) {
-        return bookingService.approveCancelRequest(id);
+    public BookingResponse approveCancelRequest(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body
+    ) {
+        String adminNote = body != null ? body.get("adminNote") : null;
+        return bookingService.approveCancelRequest(id, adminNote);
     }
 
     @PostMapping("/bookings/{id}/cancel-request/reject")
     public BookingResponse rejectCancelRequest(
             @PathVariable Long id,
-            @RequestBody Map<String, String> body
+            @RequestBody(required = false) Map<String, String> body
     ) {
-        String adminNote = body.get("adminNote");
+        String adminNote = body != null ? body.get("adminNote") : null;
         return bookingService.rejectCancelRequest(id, adminNote);
     }
 

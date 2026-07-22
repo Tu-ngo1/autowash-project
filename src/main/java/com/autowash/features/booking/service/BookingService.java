@@ -1295,7 +1295,7 @@ public class BookingService {
     }
 
     @Transactional
-    public BookingResponse approveCancelRequest(Long bookingId) {
+    public BookingResponse approveCancelRequest(Long bookingId, String adminNote) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn đặt lịch"));
 
@@ -1305,6 +1305,9 @@ public class BookingService {
 
         booking.setCancelRequestStatus(CancelRequestStatus.APPROVED);
         booking.setStatus(BookingStatus.CANCELLED);
+        if (adminNote != null && !adminNote.trim().isEmpty()) {
+            booking.setCancelRequestAdminNote(adminNote.trim());
+        }
 
         if (booking.getPayment() != null) {
             Payment payment = booking.getPayment();
@@ -1335,7 +1338,7 @@ public class BookingService {
     }
 
     @Transactional
-    public BookingResponse updateBookingStatusByAdmin(Long bookingId, BookingStatus status) {
+    public BookingResponse updateBookingStatusByAdmin(Long bookingId, BookingStatus status, String note) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn đặt lịch"));
 
@@ -1369,6 +1372,13 @@ public class BookingService {
                 awardPointsForCompletedBooking(booking);
             }
         } else if (status == BookingStatus.CANCELLED && oldStatus != BookingStatus.CANCELLED) {
+            User currentAdmin = userService.getCurrentUserEntity();
+            booking.setCancelRequestedBy(currentAdmin);
+            booking.setCancelRequestedAt(LocalDateTime.now());
+            if (note != null && !note.trim().isEmpty()) {
+                booking.setCancelRequestReason(note.trim());
+                booking.setCancelRequestAdminNote(note.trim());
+            }
             if (booking.getPayment() != null) {
                 Payment payment = booking.getPayment();
                 payment.setPaymentStatus(PaymentStatus.REFUNDED);
