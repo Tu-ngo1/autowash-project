@@ -354,6 +354,12 @@ public class BookingService {
                         .build();
                 customerProfileRepository.save(profile);
                 
+                Wallet wallet = Wallet.builder()
+                        .user(savedUser)
+                        .balance(0)
+                        .build();
+                walletRepository.save(wallet);
+                
                 customer = userRepository.findById(savedUser.getId()).orElse(savedUser);
             }
         }
