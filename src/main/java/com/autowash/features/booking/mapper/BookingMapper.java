@@ -91,6 +91,8 @@ public class BookingMapper {
                 .arrivedAt(booking.getArrivedAt())
                 .washStartedAt(booking.getWashStartedAt())
                 .completedAt(booking.getCompletedAt())
+                .createdAt(booking.getCreatedAt())
+                .updatedAt(booking.getUpdatedAt())
                 .customerNote(booking.getCustomerNote())
                 .tierLevel(tierLevel)
                 .discount(discount)

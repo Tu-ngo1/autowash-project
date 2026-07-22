@@ -39,6 +39,8 @@ public class BookingResponse {
     private LocalDateTime arrivedAt;
     private LocalDateTime washStartedAt;
     private LocalDateTime completedAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private String customerNote;
     private String tierLevel;
     private Integer discount;
