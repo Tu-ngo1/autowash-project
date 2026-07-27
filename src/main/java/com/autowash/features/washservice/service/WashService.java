@@ -134,7 +134,7 @@ public class WashService {
     }
 
     public List<AvailableServiceResponse> getServicesByVehicleSize(VehicleSize size) {
-        VehicleSize targetSize = size != null ? size : VehicleSize.SEDAN;
+        VehicleSize targetSize = size != null ? size : VehicleSize.SMALL;
         List<ServicePrice> prices = (size != null)
                 ? servicePriceRepository.findByVehicleSizeAndActiveTrueAndServiceActiveTrue(size)
                 .stream()
