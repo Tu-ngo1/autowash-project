@@ -98,6 +98,19 @@ public class StaffController {
         return userService.searchCustomer(query);
     }
 
+    @GetMapping({"/dashboard/washed", "/washed"})
+    public List<BookingResponse> getWashedBookings() {
+        return bookingService.getWashedBookingsForToday();
+    }
+
+    @PostMapping("/bookings/{id}/checkout")
+    public BookingResponse checkoutBooking(
+            @PathVariable Long id,
+            @RequestParam(required = false) String paymentMethod
+    ) {
+        return bookingService.checkoutAndHandoverBooking(id, paymentMethod);
+    }
+
     @GetMapping("/bookings/walk-in/data")
     public BookingDataResponse getWalkInBookingData(@RequestParam(required = false) VehicleSize carSize) {
         LocalDate today = LocalDate.now();

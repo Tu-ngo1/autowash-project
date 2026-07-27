@@ -1206,13 +1206,47 @@ public class BookingService {
                 .findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy xe đang rửa trong khoang " + bayNumber));
 
-        booking.setStatus(BookingStatus.COMPLETED);
+        booking.setStatus(BookingStatus.WASHED);
         booking.setCompletedAt(LocalDateTime.now());
+        booking.setBayNumber(null); // Giải phóng khoang rửa để đón xe tiếp theo!
+
+        return bookingMapper.toResponse(bookingRepository.save(booking));
+    }
+
+    public List<BookingResponse> getWashedBookingsForToday() {
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+
+        return bookingRepository.findByScheduledStartTimeBetweenOrderByScheduledStartTimeAsc(startOfDay, endOfDay)
+                .stream()
+                .filter(b -> b.getStatus() == BookingStatus.WASHED || b.getStatus() == BookingStatus.COMPLETED)
+                .map(bookingMapper::toResponse)
+                .toList();
+    }
+
+    @Transactional
+    public BookingResponse checkoutAndHandoverBooking(Long bookingId, String paymentMethodStr) {
+        Booking booking = findBookingOrThrow(bookingId);
+
+        booking.setStatus(BookingStatus.COMPLETED);
+        if (booking.getCompletedAt() == null) {
+            booking.setCompletedAt(LocalDateTime.now());
+        }
 
         Payment payment = booking.getPayment();
-        if (payment != null && payment.getPaymentStatus() == PaymentStatus.PENDING) {
+        if (payment != null) {
             payment.setPaymentStatus(PaymentStatus.PAID);
-            payment.setPaidAt(LocalDateTime.now());
+            if (payment.getPaidAt() == null) {
+                payment.setPaidAt(LocalDateTime.now());
+            }
+            payment.setActualPaidAmount(payment.getFinalPrice());
+
+            if (paymentMethodStr != null && !paymentMethodStr.trim().isEmpty()) {
+                try {
+                    payment.setPaymentMethod(PaymentMethod.valueOf(paymentMethodStr.toUpperCase()));
+                } catch (Exception ignored) {}
+            }
             paymentRepository.save(payment);
         }
 
