@@ -115,6 +115,7 @@ public class BookingService {
 
     private static final int MIN_BOOKING_BUFFER_MINUTES = 30;
     private static final int CANCEL_BUFFER_MINUTES = 60;
+    private static final int TRANSIT_BUFFER_MINUTES = 20; // 15 phút đệm trễ tối đa + 5 phút vệ sinh/ra vào khoang rửa
 
     @Transactional
     public BookingResponse createBooking(Long customerId, CreateBookingRequest request) {
@@ -691,7 +692,7 @@ public class BookingService {
         }
 
         LocalTime startTime = scheduledStartTime.toLocalTime();
-        int transitBufferMinutes = 5;
+        int transitBufferMinutes = TRANSIT_BUFFER_MINUTES;
         int neededDuration = totalDuration + transitBufferMinutes;
         LocalTime endTime = startTime.plusMinutes(neededDuration);
 
@@ -815,7 +816,7 @@ public class BookingService {
             return new ArrayList<>();
         }
 
-        int transitBufferMinutes = 5;
+        int transitBufferMinutes = TRANSIT_BUFFER_MINUTES;
         int neededDuration = totalDurationMinutes + transitBufferMinutes;
 
         LocalDateTime startOfDay = date.atStartOfDay();
@@ -1118,11 +1119,9 @@ public class BookingService {
         allBayBookings.addAll(activeBookings);
         allBayBookings.addAll(waitingInBays);
 
-        LocalDateTime limitTime = LocalDateTime.now().plusMinutes(5);
         List<Booking> queueBookings = new ArrayList<>(bookingRepository.findBookingsByStatus(BookingStatus.ARRIVED)
                 .stream()
                 .filter(b -> b.getBayNumber() == null)
-                .filter(b -> !b.getScheduledStartTime().isAfter(limitTime)) // Only dispatch if within 5 mins of scheduled start time
                 .sorted((b1, b2) -> {
                     int comp = b1.getScheduledStartTime().compareTo(b2.getScheduledStartTime());
                     if (comp != 0) {
@@ -1181,11 +1180,6 @@ public class BookingService {
 
         if (booking.getStatus() != BookingStatus.ARRIVED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lịch hẹn phải ở trạng thái đã check-in (ARRIVED) mới có thể cho vào khoang.");
-        }
-
-        LocalDateTime limitTime = LocalDateTime.now().plusMinutes(5);
-        if (booking.getScheduledStartTime().isAfter(limitTime)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chưa đến giờ hẹn để đưa xe vào khoang rửa (chỉ được đưa vào trước tối đa 5 phút).");
         }
 
         boolean bayOccupied = bookingRepository.findBookingsByStatus(BookingStatus.IN_PROGRESS)
