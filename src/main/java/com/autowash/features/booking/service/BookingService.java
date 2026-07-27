@@ -1245,11 +1245,11 @@ public class BookingService {
         }
 
         if (booking.getStatus() == BookingStatus.COMPLETED || booking.getStatus() == BookingStatus.CANCELLED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể bổ sung dịch vụ cho đơn đặt lịch đã hoàn thành hoặc đã hủy");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể chỉnh sửa dịch vụ cho đơn đặt lịch đã hoàn thành hoặc đã hủy");
         }
 
         if (request.getServiceIds() == null || request.getServiceIds().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn ít nhất 1 dịch vụ bổ sung");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn ít nhất 1 dịch vụ");
         }
 
         Car car = booking.getVehicle();
@@ -1259,20 +1259,66 @@ public class BookingService {
 
         VehicleSize vehicleSize = car.getVehicleModel().getVehicleSize();
 
-        List<ServicePrice> addedPrices = new ArrayList<>();
+        List<ServicePrice> newPrices = new ArrayList<>();
         for (Long id : request.getServiceIds()) {
             ServicePrice price = servicePriceRepository.findByServiceIdAndVehicleSizeAndActiveTrue(id, vehicleSize)
                     .orElseGet(() -> servicePriceRepository.findById(id)
                             .orElseThrow(() -> new ResponseStatusException(
                                     HttpStatus.NOT_FOUND, "Không tìm thấy dịch vụ tương thích với kích thước xe (ID: " + id + ")"
                             )));
-            addedPrices.add(price);
+            newPrices.add(price);
         }
 
-        int additionalSubTotal = addedPrices.stream().mapToInt(ServicePrice::getPrice).sum();
-        int additionalDuration = addedPrices.stream().mapToInt(ServicePrice::getDurationMinutes).sum();
+        int newSubTotal = newPrices.stream().mapToInt(ServicePrice::getPrice).sum();
+        int newDuration = newPrices.stream().mapToInt(ServicePrice::getDurationMinutes).sum();
 
-        for (ServicePrice price : addedPrices) {
+        int oldDuration = (booking.getBookingDetails() != null)
+                ? booking.getBookingDetails().stream().mapToInt(d -> d.getActualDurationMinutes() != null ? d.getActualDurationMinutes() : 0).sum()
+                : 0;
+
+        int durationDelta = newDuration - oldDuration;
+
+        LocalDateTime startTime = booking.getWashStartedAt() != null
+                ? booking.getWashStartedAt()
+                : (booking.getScheduledStartTime() != null ? booking.getScheduledStartTime() : LocalDateTime.now());
+        LocalDateTime proposedEndTime = startTime.plusMinutes(newDuration);
+
+        // KIỂM TRA ĐỤNG LỊCH: Nếu thời gian rửa kéo dài thêm (durationDelta > 0)
+        if (durationDelta > 0) {
+            LocalDate today = startTime.toLocalDate();
+            DailyOperationsConfig config = dailyOperationsConfigRepository.findByConfigDate(today)
+                    .orElseGet(() -> DailyOperationsConfig.builder()
+                            .configDate(today)
+                            .bayCount(2)
+                            .isActive(true)
+                            .build());
+
+            int bayCount = config.getBayCount() != null ? config.getBayCount() : 2;
+
+            List<Booking> otherBookings = bookingRepository.findByScheduledStartTimeBetweenOrderByScheduledStartTimeAsc(
+                    today.atStartOfDay(),
+                    today.atTime(23, 59, 59)
+            ).stream()
+            .filter(b -> !b.getId().equals(bookingId))
+            .filter(b -> b.getStatus() == BookingStatus.PENDING || b.getStatus() == BookingStatus.CONFIRM || b.getStatus() == BookingStatus.ARRIVED || b.getStatus() == BookingStatus.IN_PROGRESS)
+            .toList();
+
+            boolean hasFreeBay = checkBayAvailability(startTime, proposedEndTime, otherBookings, bayCount);
+            if (!hasFreeBay) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Không thể chỉnh sửa dịch vụ! Việc kéo dài thời gian rửa (+ " + durationDelta + " phút) sẽ bị trùng/đụng lịch hẹn với xe ở ca sau."
+                );
+            }
+        }
+
+        // Xóa danh sách dịch vụ cũ & cập nhật lại danh sách mới
+        if (booking.getBookingDetails() != null && !booking.getBookingDetails().isEmpty()) {
+            bookingDetailRepository.deleteAll(booking.getBookingDetails());
+            booking.getBookingDetails().clear();
+        }
+
+        for (ServicePrice price : newPrices) {
             BookingDetail detail = BookingDetail.builder()
                     .booking(booking)
                     .servicePrice(price)
@@ -1283,40 +1329,61 @@ public class BookingService {
             booking.getBookingDetails().add(detail);
         }
 
-        int additionalTierDiscount = 0;
+        // Tính giảm giá hạng thành viên
+        int newTierDiscount = 0;
         User customer = booking.getUser();
-        CustomerProfile profile = customer.getCustomerProfile();
+        CustomerProfile profile = customer != null ? customer.getCustomerProfile() : null;
         if (profile != null && profile.getTierConfig() != null && profile.getTierConfig().getAutoDiscountPercent() != null) {
             double discountPercent = profile.getTierConfig().getAutoDiscountPercent().doubleValue();
-            additionalTierDiscount = (int) Math.round((additionalSubTotal * discountPercent) / 100);
+            newTierDiscount = (int) Math.round((newSubTotal * discountPercent) / 100);
         }
 
-        int additionalFinalPrice = Math.max(additionalSubTotal - additionalTierDiscount, 0);
-
-        booking.setTotalPrice(booking.getTotalPrice() + additionalSubTotal);
-        if (booking.getExpectedEndTime() != null) {
-            booking.setExpectedEndTime(booking.getExpectedEndTime().plusMinutes(additionalDuration));
-        }
+        int newFinalPrice = Math.max(newSubTotal - newTierDiscount, 0);
 
         Payment payment = booking.getPayment();
+        int oldFinalPrice = (payment != null && payment.getFinalPrice() != null) ? payment.getFinalPrice() : (booking.getTotalPrice() != null ? booking.getTotalPrice() : 0);
+
+        booking.setTotalPrice(newSubTotal);
+        booking.setExpectedEndTime(proposedEndTime);
+
         if (payment != null) {
-            payment.setSubTotal(payment.getSubTotal() + additionalSubTotal);
-            payment.setDiscountAmount(payment.getDiscountAmount() + additionalTierDiscount);
-            payment.setFinalPrice(payment.getFinalPrice() + additionalFinalPrice);
+            int priceDelta = newFinalPrice - oldFinalPrice;
 
-            if (PaymentMethod.WALLET.equals(payment.getPaymentMethod()) && PaymentStatus.PAID.equals(payment.getPaymentStatus())) {
+            payment.setSubTotal(newSubTotal);
+            payment.setDiscountAmount(newTierDiscount);
+            payment.setFinalPrice(newFinalPrice);
+
+            if (PaymentMethod.WALLET.equals(payment.getPaymentMethod()) && PaymentStatus.PAID.equals(payment.getPaymentStatus()) && customer != null) {
                 Wallet wallet = walletRepository.findByUserId(customer.getId()).orElse(null);
-                if (wallet != null && wallet.getBalance() >= additionalFinalPrice) {
-                    wallet.setBalance(wallet.getBalance() - additionalFinalPrice);
-                    walletRepository.save(wallet);
+                if (wallet != null) {
+                    if (priceDelta > 0) {
+                        // Thu thêm từ Ví
+                        if (wallet.getBalance() >= priceDelta) {
+                            wallet.setBalance(wallet.getBalance() - priceDelta);
+                            walletRepository.save(wallet);
 
-                    WalletTransaction walletTx = WalletTransaction.builder()
-                            .wallet(wallet)
-                            .amount(-additionalFinalPrice)
-                            .transactionType(WalletTransactionType.PAYMENT)
-                            .description("Thanh toán bổ sung dịch vụ cho đơn " + booking.getBookingCode())
-                            .build();
-                    walletTransactionRepository.save(walletTx);
+                            WalletTransaction walletTx = WalletTransaction.builder()
+                                    .wallet(wallet)
+                                    .amount(-priceDelta)
+                                    .transactionType(WalletTransactionType.PAYMENT)
+                                    .description("Thanh toán điều chỉnh tăng dịch vụ cho đơn " + booking.getBookingCode())
+                                    .build();
+                            walletTransactionRepository.save(walletTx);
+                        }
+                    } else if (priceDelta < 0) {
+                        // Hoàn lại tiền thừa vào Ví
+                        int refundAmount = Math.abs(priceDelta);
+                        wallet.setBalance(wallet.getBalance() + refundAmount);
+                        walletRepository.save(wallet);
+
+                        WalletTransaction walletTx = WalletTransaction.builder()
+                                .wallet(wallet)
+                                .amount(refundAmount)
+                                .transactionType(WalletTransactionType.REFUND)
+                                .description("Hoàn tiền chênh lệch giảm dịch vụ cho đơn " + booking.getBookingCode())
+                                .build();
+                        walletTransactionRepository.save(walletTx);
+                    }
                 }
             }
             paymentRepository.save(payment);
