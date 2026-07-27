@@ -18,6 +18,12 @@ public interface BookingDetailRepository extends JpaRepository<BookingDetail, Lo
 
     List<BookingDetail> findByBookingId(Long bookingId);
 
+    void deleteByBookingId(Long bookingId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query(value = "SELECT setval(pg_get_serial_sequence('booking_details', 'id'), (SELECT COALESCE(MAX(id), 1) FROM booking_details))", nativeQuery = true)
+    void fixSequenceId();
+
     @Query("""
         SELECT new com.autowash.features.analytics.dto.response.ServiceRatioResponse(
             s.name,

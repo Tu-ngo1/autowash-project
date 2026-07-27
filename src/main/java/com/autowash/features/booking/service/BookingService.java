@@ -1356,7 +1356,14 @@ public class BookingService {
         // Xóa danh sách dịch vụ cũ & cập nhật lại danh sách mới
         if (booking.getBookingDetails() != null && !booking.getBookingDetails().isEmpty()) {
             bookingDetailRepository.deleteAll(booking.getBookingDetails());
+            bookingDetailRepository.flush();
             booking.getBookingDetails().clear();
+        }
+
+        try {
+            bookingDetailRepository.fixSequenceId();
+        } catch (Exception e) {
+            log.warn("Could not fix sequence id for booking_details: {}", e.getMessage());
         }
 
         for (ServicePrice price : newPrices) {
