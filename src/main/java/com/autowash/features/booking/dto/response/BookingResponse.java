@@ -25,6 +25,7 @@ public class BookingResponse {
     private String customerEmail;
     private Long vehicleId;
     private String vehicleLicensePlate;
+    private String vehicleSize;
     private LocalDateTime scheduledStartTime;
     private LocalDateTime expectedEndTime;
     private BookingStatus status;

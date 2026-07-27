@@ -69,6 +69,11 @@ public class BookingMapper {
             }
         }
 
+        String vehicleSize = null;
+        if (booking.getVehicle() != null && booking.getVehicle().getVehicleModel() != null && booking.getVehicle().getVehicleModel().getVehicleSize() != null) {
+            vehicleSize = booking.getVehicle().getVehicleModel().getVehicleSize().name();
+        }
+
         return BookingResponse.builder()
                 .id(booking.getId())
                 .bookingCode(booking.getBookingCode())
@@ -77,6 +82,7 @@ public class BookingMapper {
                 .customerEmail(booking.getUser() != null ? booking.getUser().getEmail() : null)
                 .vehicleId(booking.getVehicle() != null ? booking.getVehicle().getId() : null)
                 .vehicleLicensePlate(booking.getVehicle() != null ? booking.getVehicle().getLicensePlate() : null)
+                .vehicleSize(vehicleSize)
                 .scheduledStartTime(booking.getScheduledStartTime())
                 .expectedEndTime(booking.getExpectedEndTime())
                 .status(booking.getStatus())
