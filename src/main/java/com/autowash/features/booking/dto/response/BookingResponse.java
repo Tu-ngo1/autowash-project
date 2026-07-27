@@ -34,6 +34,7 @@ public class BookingResponse {
     private String paymentStatus;
     private Integer totalPrice;
     private Integer finalPrice;
+    private Integer actualPaidAmount;
     private Integer bayNumber;
     private Boolean late;
     private Boolean qrUsed;

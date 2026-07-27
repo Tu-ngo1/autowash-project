@@ -43,6 +43,7 @@ public class BookingMapper {
         String paymentStatus = null;
         Integer finalPrice = totalPrice;
         Integer discount = 0;
+        Integer actualPaidAmount = null;
 
         if (booking.getPayment() != null) {
             paymentMethod = booking.getPayment().getPaymentMethod() != null
@@ -58,6 +59,10 @@ public class BookingMapper {
             }
             if (booking.getPayment().getDiscountAmount() != null) {
                 discount = booking.getPayment().getDiscountAmount();
+            }
+            actualPaidAmount = booking.getPayment().getActualPaidAmount();
+            if (actualPaidAmount == null && PaymentStatus.PAID.name().equals(paymentStatus)) {
+                actualPaidAmount = finalPrice;
             }
         }
 
@@ -91,6 +96,7 @@ public class BookingMapper {
                 .paymentStatus(paymentStatus)
                 .totalPrice(totalPrice)
                 .finalPrice(finalPrice)
+                .actualPaidAmount(actualPaidAmount)
                 .bayNumber(booking.getBayNumber())
                 .late(booking.getLate())
                 .qrUsed(booking.getQrUsed())

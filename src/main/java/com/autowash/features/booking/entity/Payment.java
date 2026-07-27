@@ -69,6 +69,9 @@ public class Payment {
     @Column(name = "Final_price", nullable = false)
     private Integer finalPrice;
 
+    @Column(name = "Actual_paid_amount")
+    private Integer actualPaidAmount;
+
     @Column(name = "Paid_at")
     private LocalDateTime paidAt;
 
