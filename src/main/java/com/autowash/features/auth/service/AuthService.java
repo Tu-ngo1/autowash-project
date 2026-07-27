@@ -25,6 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
+import java.time.Duration;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -79,6 +82,11 @@ public class AuthService {
                 ));
 
         user.setPassword(passwordEncoder.encode(newPassword));
+        user.setFailedAttempt(0);
+        user.setLockTime(null);
+        if (user.getStatus() == UserStatus.LOCKED) {
+            user.setStatus(UserStatus.ACTIVE);
+        }
         userRepository.save(user);
 
         otpService.consumeForgotPasswordOtp(email);
@@ -130,6 +138,7 @@ public class AuthService {
                 .password(passwordEncoder.encode(password))
                 .role(Role.CUSTOMER)
                 .status(UserStatus.ACTIVE)
+                .failedAttempt(0)
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -169,25 +178,26 @@ public class AuthService {
         );
     }
 
+    @Transactional
     public AuthResponse login(LoginRequest request) {
 
         if (request.getUsernameOrPhone() == null || request.getUsernameOrPhone().isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Username or phone is required"
+                    "Vui lòng nhập Tên đăng nhập hoặc Số điện thoại"
             );
         }
 
         if (request.getPassword() == null || request.getPassword().isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Password is required"
+                    "Vui lòng nhập Mật khẩu"
             );
         }
 
         String usernameOrPhone = normalizeRequired(
                 request.getUsernameOrPhone(),
-                "Username or phone is required"
+                "Vui lòng nhập Tên đăng nhập hoặc Số điện thoại"
         );
 
         User user = userRepository.findByUsernameOrPhone(
@@ -195,21 +205,72 @@ public class AuthService {
                 usernameOrPhone
         ).orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.UNAUTHORIZED,
-                "Invalid credentials"
+                "Tên đăng nhập/số điện thoại hoặc mật khẩu không chính xác"
         ));
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "Invalid username/phone or password"
-            );
+        // 1. Check temporary lock time (5 minutes)
+        if (user.getLockTime() != null) {
+            if (user.getLockTime().isAfter(LocalDateTime.now())) {
+                long remainingSeconds = Duration.between(LocalDateTime.now(), user.getLockTime()).getSeconds();
+                long minutes = remainingSeconds / 60;
+                long seconds = remainingSeconds % 60;
+                String timeMsg = minutes > 0
+                        ? (minutes + " phút " + (seconds > 0 ? seconds + " giây" : ""))
+                        : (seconds + " giây");
+
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Tài khoản đang bị tạm khóa do nhập sai mật khẩu 5 lần liên tiếp. Vui lòng thử lại sau " + timeMsg + "."
+                );
+            } else {
+                // Lock expired -> auto unlock
+                user.setLockTime(null);
+                user.setFailedAttempt(0);
+                if (user.getStatus() == UserStatus.LOCKED) {
+                    user.setStatus(UserStatus.ACTIVE);
+                }
+                userRepository.save(user);
+            }
         }
 
+        // 2. Check general user status
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "Account is locked or disabled"
+                    "Tài khoản của bạn đã bị khóa hoặc vô hiệu hóa. Vui lòng liên hệ quản trị viên."
             );
+        }
+
+        // 3. Password match check
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            int currentFailed = (user.getFailedAttempt() != null ? user.getFailedAttempt() : 0) + 1;
+            user.setFailedAttempt(currentFailed);
+
+            if (currentFailed >= 5) {
+                user.setLockTime(LocalDateTime.now().plusMinutes(5));
+                user.setStatus(UserStatus.LOCKED);
+                userRepository.save(user);
+
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Bạn đã nhập sai mật khẩu 5 lần liên tiếp. Tài khoản đã bị tạm khóa trong 5 phút."
+                );
+            } else {
+                userRepository.save(user);
+                int remaining = 5 - currentFailed;
+
+                throw new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Tên đăng nhập hoặc mật khẩu không chính xác. Bạn còn " + remaining + " lần thử."
+                );
+            }
+        }
+
+        // 4. Login successful -> reset counters
+        if ((user.getFailedAttempt() != null && user.getFailedAttempt() > 0) || user.getLockTime() != null) {
+            user.setFailedAttempt(0);
+            user.setLockTime(null);
+            userRepository.save(user);
         }
 
         String token = jwtService.generateToken(user.getEmail(), user.getRole().name());
