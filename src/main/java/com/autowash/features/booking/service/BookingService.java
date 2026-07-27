@@ -1269,6 +1269,13 @@ public class BookingService {
             newPrices.add(price);
         }
 
+        boolean hasMainService = newPrices.stream()
+                .anyMatch(price -> price.getService() != null && Boolean.TRUE.equals(price.getService().getIsMainService()));
+
+        if (!hasMainService) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đơn đặt lịch bắt buộc phải có ít nhất 1 gói dịch vụ rửa xe chính!");
+        }
+
         int newSubTotal = newPrices.stream().mapToInt(ServicePrice::getPrice).sum();
         int newDuration = newPrices.stream().mapToInt(ServicePrice::getDurationMinutes).sum();
 
