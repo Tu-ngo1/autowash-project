@@ -1353,17 +1353,11 @@ public class BookingService {
             }
         }
 
-        // Xóa danh sách dịch vụ cũ & cập nhật lại danh sách mới
-        if (booking.getBookingDetails() != null && !booking.getBookingDetails().isEmpty()) {
-            bookingDetailRepository.deleteAll(booking.getBookingDetails());
-            bookingDetailRepository.flush();
+        // Xóa danh sách dịch vụ cũ & cập nhật lại danh sách mới qua Hibernate orphanRemoval
+        if (booking.getBookingDetails() != null) {
             booking.getBookingDetails().clear();
-        }
-
-        try {
-            bookingDetailRepository.fixSequenceId();
-        } catch (Exception e) {
-            log.warn("Could not fix sequence id for booking_details: {}", e.getMessage());
+        } else {
+            booking.setBookingDetails(new ArrayList<>());
         }
 
         for (ServicePrice price : newPrices) {
@@ -1373,7 +1367,6 @@ public class BookingService {
                     .actualPrice(price.getPrice())
                     .actualDurationMinutes(price.getDurationMinutes())
                     .build();
-            bookingDetailRepository.save(detail);
             booking.getBookingDetails().add(detail);
         }
 
