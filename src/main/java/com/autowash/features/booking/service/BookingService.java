@@ -1360,11 +1360,11 @@ public class BookingService {
             payment.setDiscountAmount(newTierDiscount);
             payment.setFinalPrice(newFinalPrice);
 
-            if (PaymentMethod.WALLET.equals(payment.getPaymentMethod()) && PaymentStatus.PAID.equals(payment.getPaymentStatus()) && customer != null) {
+            if (PaymentStatus.PAID.equals(payment.getPaymentStatus()) && customer != null) {
                 Wallet wallet = walletRepository.findByUserId(customer.getId()).orElse(null);
                 if (wallet != null) {
-                    if (priceDelta > 0) {
-                        // Thu thêm từ Ví
+                    if (priceDelta > 0 && PaymentMethod.WALLET.equals(payment.getPaymentMethod())) {
+                        // Thu thêm từ Ví (nếu phương thức thanh toán ban đầu là Ví)
                         if (wallet.getBalance() >= priceDelta) {
                             wallet.setBalance(wallet.getBalance() - priceDelta);
                             walletRepository.save(wallet);
@@ -1378,7 +1378,7 @@ public class BookingService {
                             walletTransactionRepository.save(walletTx);
                         }
                     } else if (priceDelta < 0) {
-                        // Hoàn lại tiền thừa vào Ví
+                        // Hoàn lại tiền thừa vào Ví khách cho TẤT CẢ các phương thức thanh toán trả trước (PAYOS, WALLET, BANK_TRANSFER)
                         int refundAmount = Math.abs(priceDelta);
                         wallet.setBalance(wallet.getBalance() + refundAmount);
                         walletRepository.save(wallet);
