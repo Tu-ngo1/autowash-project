@@ -99,7 +99,7 @@ public class StaffController {
     }
 
     @GetMapping("/bookings/walk-in/data")
-    public BookingDataResponse getWalkInBookingData(@RequestParam VehicleSize carSize) {
+    public BookingDataResponse getWalkInBookingData(@RequestParam(required = false) VehicleSize carSize) {
         LocalDate today = LocalDate.now();
         var services = washService.getServicesByVehicleSize(carSize);
         var slots = bookingService.getAvailableSlots(today, 90);

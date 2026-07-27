@@ -134,17 +134,28 @@ public class WashService {
     }
 
     public List<AvailableServiceResponse> getServicesByVehicleSize(VehicleSize size) {
-        return servicePriceRepository.findByVehicleSizeAndActiveTrueAndServiceActiveTrue(size)
+        VehicleSize targetSize = size != null ? size : VehicleSize.SEDAN;
+        List<ServicePrice> prices = (size != null)
+                ? servicePriceRepository.findByVehicleSizeAndActiveTrueAndServiceActiveTrue(size)
                 .stream()
                 .filter(price -> price.getService() != null && Boolean.TRUE.equals(price.getService().getActive()))
+                .toList()
+                : servicePriceRepository.findAll()
+                .stream()
+                .filter(price -> Boolean.TRUE.equals(price.getActive()) && price.getService() != null && Boolean.TRUE.equals(price.getService().getActive()))
+                .toList();
+
+        return prices.stream()
                 .map(price -> AvailableServiceResponse.builder()
+                        .id(price.getService().getId())
                         .serviceId(price.getService().getId())
+                        .name(price.getService().getName())
                         .serviceName(price.getService().getName())
                         .description(price.getService().getDescription())
                         .servicePriceId(price.getId())
                         .price(price.getPrice())
                         .durationMinutes(price.getDurationMinutes())
-                        .vehicleSize(size.name())
+                        .vehicleSize(price.getVehicleSize() != null ? price.getVehicleSize().name() : targetSize.name())
                         .isMainService(price.getService().getIsMainService())
                         .build())
                 .toList();

@@ -10,7 +10,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AvailableServiceResponse {
+    private Long id;
     private Long serviceId;
+    private String name;
     private String serviceName;
     private String description;
     private Long servicePriceId;
