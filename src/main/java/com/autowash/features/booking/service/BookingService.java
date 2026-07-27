@@ -1264,8 +1264,21 @@ public class BookingService {
                         "Không tìm thấy xe đang chờ rửa trong khoang " + bayNumber
                 ));
 
+        LocalDateTime now = LocalDateTime.now();
         booking.setStatus(BookingStatus.IN_PROGRESS);
-        booking.setWashStartedAt(LocalDateTime.now());
+        booking.setWashStartedAt(now);
+
+        int totalDurationMinutes = 0;
+        if (booking.getBookingDetails() != null && !booking.getBookingDetails().isEmpty()) {
+            totalDurationMinutes = booking.getBookingDetails().stream()
+                    .mapToInt(d -> d.getActualDurationMinutes() != null ? d.getActualDurationMinutes() : 0)
+                    .sum();
+        }
+        if (totalDurationMinutes <= 0) {
+            totalDurationMinutes = 45;
+        }
+
+        booking.setExpectedEndTime(now.plusMinutes(totalDurationMinutes));
 
         return bookingMapper.toResponse(bookingRepository.save(booking));
     }
