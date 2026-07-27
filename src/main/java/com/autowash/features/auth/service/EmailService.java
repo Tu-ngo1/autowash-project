@@ -55,4 +55,41 @@ public class EmailService {
             throw new RuntimeException("Failed to send verification email via Resend", e);
         }
     }
+
+    public void sendForgotPasswordOtp(String toEmail, String otpCode) {
+        if (resendApiKey == null || resendApiKey.isBlank()) {
+            System.err.println("Resend API Key is not configured. Email not sent.");
+            throw new IllegalStateException("Resend API Key is not configured");
+        }
+
+        String url = "https://api.resend.com/emails";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(resendApiKey);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("from", fromEmail);
+        body.put("to", List.of(toEmail));
+        body.put("subject", "AutoWash Pro - Quên mật khẩu OTP");
+        body.put("html", "<p>Chào bạn,</p>"
+                + "<p>Mã OTP để đặt lại mật khẩu cho tài khoản AutoWash Pro của bạn là: <strong>" + otpCode + "</strong></p>"
+                + "<p>Mã này có hiệu lực trong vòng 5 phút.</p>"
+                + "<p>Nếu bạn không gửi yêu cầu này, vui lòng bỏ qua email hoặc liên hệ với chúng tôi.</p>");
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+            if (response.getStatusCode().is2xxSuccessful()) {
+                System.out.println("Forgot password OTP email sent successfully to " + toEmail);
+            } else {
+                System.err.println("Failed to send forgot password email via Resend API. Response: " + response.getBody());
+                throw new RuntimeException("Resend API returned status code: " + response.getStatusCode());
+            }
+        } catch (Exception e) {
+            System.err.println("Error calling Resend API: " + e.getMessage());
+            throw new RuntimeException("Failed to send forgot password email via Resend", e);
+        }
+    }
 }

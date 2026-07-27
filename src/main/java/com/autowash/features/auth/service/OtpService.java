@@ -206,6 +206,80 @@ public class OtpService {
                 .ifPresent(otpTokenRepository::delete);
     }
 
+    @Transactional
+    public void sendForgotPasswordOtp(String email) {
+        String normalizedEmail = normalizeEmail(email);
+
+        if (!userRepository.existsByEmail(normalizedEmail)) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Email không tồn tại trong hệ thống"
+            );
+        }
+
+        String otpCode = generateOtpCode();
+
+        OtpToken otpToken = OtpToken.builder()
+                .email(normalizedEmail)
+                .otpCode(otpCode)
+                .resendCount(0)
+                .verified(false)
+                .createdAt(LocalDateTime.now())
+                .expiredAt(LocalDateTime.now().plusMinutes(5))
+                .purpose(OtpPurpose.FORGOT_PASSWORD)
+                .build();
+
+        otpTokenRepository.save(otpToken);
+        try {
+            emailService.sendForgotPasswordOtp(normalizedEmail, otpCode);
+        } catch (Exception e) {
+            System.out.println("====== [TEST OTP] Forgot Password Email: " + normalizedEmail + " | Code: " + otpCode + " ======");
+        }
+    }
+
+    @Transactional
+    public void verifyForgotPasswordOtp(String email, String otpCode) {
+        OtpToken otpToken = getLatestForgotPasswordOtp(email);
+
+        assertOtpNotExpired(otpToken);
+        assertOtpNotAlreadyVerified(otpToken);
+        assertOtpCodeMatches(otpToken, otpCode);
+
+        otpToken.setVerified(true);
+        otpTokenRepository.save(otpToken);
+    }
+
+    @Transactional
+    public void validateForgotPasswordOtpForReset(String email, String otpCode) {
+        OtpToken otpToken = getLatestForgotPasswordOtp(email);
+
+        if (!Boolean.TRUE.equals(otpToken.getVerified())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Vui lòng xác thực mã OTP trước khi đặt lại mật khẩu"
+            );
+        }
+
+        assertOtpNotExpired(otpToken);
+        assertOtpCodeMatches(otpToken, otpCode);
+    }
+
+    @Transactional
+    public void consumeForgotPasswordOtp(String email) {
+        otpTokenRepository
+                .findTopByEmailAndPurposeOrderByCreatedAtDesc(normalizeEmail(email), OtpPurpose.FORGOT_PASSWORD)
+                .ifPresent(otpTokenRepository::delete);
+    }
+
+    private OtpToken getLatestForgotPasswordOtp(String email) {
+        return otpTokenRepository
+                .findTopByEmailAndPurposeOrderByCreatedAtDesc(normalizeEmail(email), OtpPurpose.FORGOT_PASSWORD)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Mã OTP không tồn tại hoặc đã hết hạn"
+                ));
+    }
+
     private OtpToken getLatestRegistrationOtp(String email) {
         return otpTokenRepository
                 .findTopByEmailAndPurposeOrderByCreatedAtDesc(normalizeEmail(email), OtpPurpose.REGISTER)

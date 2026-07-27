@@ -4,6 +4,7 @@ package com.autowash.features.auth.service;
 
 import com.autowash.features.auth.dto.request.LoginRequest;
 import com.autowash.features.auth.dto.request.RegisterRequest;
+import com.autowash.features.auth.dto.request.ResetPasswordRequest;
 import com.autowash.features.auth.dto.response.AuthResponse;
 import com.autowash.features.user.entity.CustomerProfile;
 import com.autowash.features.user.entity.TierConfig;
@@ -44,6 +45,43 @@ public class AuthService {
     @Transactional
     public void verifyRegistrationOtp(String email, String otp) {
         otpService.verifyRegistrationOtp(email, otp);
+    }
+
+    @Transactional
+    public void sendForgotPasswordOtp(String email) {
+        otpService.sendForgotPasswordOtp(email);
+    }
+
+    @Transactional
+    public void verifyForgotPasswordOtp(String email, String otp) {
+        otpService.verifyForgotPasswordOtp(email, otp);
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        String email = normalizeRequired(request.getEmail(), "Email is required").toLowerCase();
+        String otp = normalizeRequired(request.getOtp(), "OTP is required");
+        String newPassword = normalizeRequired(request.getNewPassword(), "New password is required");
+
+        if (newPassword.length() < 6) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Mật khẩu phải chứa ít nhất 6 ký tự"
+            );
+        }
+
+        otpService.validateForgotPasswordOtpForReset(email, otp);
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Email không tồn tại trong hệ thống"
+                ));
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        otpService.consumeForgotPasswordOtp(email);
     }
 
     @Transactional
