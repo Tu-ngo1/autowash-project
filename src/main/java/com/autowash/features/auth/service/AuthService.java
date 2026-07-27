@@ -39,6 +39,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final OtpService otpService;
     private final WalletRepository walletRepository;
+    private final LoginAttemptService loginAttemptService;
 
     @Transactional
     public void sendRegistrationOtp(String email) {
@@ -82,13 +83,9 @@ public class AuthService {
                 ));
 
         user.setPassword(passwordEncoder.encode(newPassword));
-        user.setFailedAttempt(0);
-        user.setLockTime(null);
-        if (user.getStatus() == UserStatus.LOCKED) {
-            user.setStatus(UserStatus.ACTIVE);
-        }
         userRepository.save(user);
 
+        loginAttemptService.resetFailedAttempt(user.getId());
         otpService.consumeForgotPasswordOtp(email);
     }
 
@@ -178,7 +175,6 @@ public class AuthService {
         );
     }
 
-    @Transactional
     public AuthResponse login(LoginRequest request) {
 
         if (request.getUsernameOrPhone() == null || request.getUsernameOrPhone().isBlank()) {
@@ -208,29 +204,22 @@ public class AuthService {
                 "Tên đăng nhập/số điện thoại hoặc mật khẩu không chính xác"
         ));
 
-        // 1. Check temporary lock time (5 minutes)
-        if (user.getLockTime() != null) {
-            if (user.getLockTime().isAfter(LocalDateTime.now())) {
-                long remainingSeconds = Duration.between(LocalDateTime.now(), user.getLockTime()).getSeconds();
-                long minutes = remainingSeconds / 60;
-                long seconds = remainingSeconds % 60;
-                String timeMsg = minutes > 0
-                        ? (minutes + " phút " + (seconds > 0 ? seconds + " giây" : ""))
-                        : (seconds + " giây");
+        // 1. Check temporary lock time (5 minutes) and auto-unlock if expired
+        boolean isStillLocked = loginAttemptService.checkAndUnlockIfExpired(user.getId());
+        user = userRepository.findById(user.getId()).orElse(user);
 
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Tài khoản đang bị tạm khóa do nhập sai mật khẩu 5 lần liên tiếp. Vui lòng thử lại sau " + timeMsg + "."
-                );
-            } else {
-                // Lock expired -> auto unlock
-                user.setLockTime(null);
-                user.setFailedAttempt(0);
-                if (user.getStatus() == UserStatus.LOCKED) {
-                    user.setStatus(UserStatus.ACTIVE);
-                }
-                userRepository.save(user);
-            }
+        if (isStillLocked && user.getLockTime() != null) {
+            long remainingSeconds = Duration.between(LocalDateTime.now(), user.getLockTime()).getSeconds();
+            long minutes = remainingSeconds / 60;
+            long seconds = remainingSeconds % 60;
+            String timeMsg = minutes > 0
+                    ? (minutes + " phút " + (seconds > 0 ? seconds + " giây" : ""))
+                    : (seconds + " giây");
+
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Tài khoản đang bị tạm khóa do nhập sai mật khẩu 5 lần liên tiếp. Vui lòng thử lại sau " + timeMsg + "."
+            );
         }
 
         // 2. Check general user status
@@ -243,22 +232,15 @@ public class AuthService {
 
         // 3. Password match check
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            int currentFailed = (user.getFailedAttempt() != null ? user.getFailedAttempt() : 0) + 1;
-            user.setFailedAttempt(currentFailed);
+            int currentFailed = loginAttemptService.recordFailedAttempt(user.getId());
 
             if (currentFailed >= 5) {
-                user.setLockTime(LocalDateTime.now().plusMinutes(5));
-                user.setStatus(UserStatus.LOCKED);
-                userRepository.save(user);
-
                 throw new ResponseStatusException(
                         HttpStatus.FORBIDDEN,
                         "Bạn đã nhập sai mật khẩu 5 lần liên tiếp. Tài khoản đã bị tạm khóa trong 5 phút."
                 );
             } else {
-                userRepository.save(user);
                 int remaining = 5 - currentFailed;
-
                 throw new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
                         "Tên đăng nhập hoặc mật khẩu không chính xác. Bạn còn " + remaining + " lần thử."
@@ -267,11 +249,7 @@ public class AuthService {
         }
 
         // 4. Login successful -> reset counters
-        if ((user.getFailedAttempt() != null && user.getFailedAttempt() > 0) || user.getLockTime() != null) {
-            user.setFailedAttempt(0);
-            user.setLockTime(null);
-            userRepository.save(user);
-        }
+        loginAttemptService.resetFailedAttempt(user.getId());
 
         String token = jwtService.generateToken(user.getEmail(), user.getRole().name());
 
