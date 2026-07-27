@@ -124,4 +124,12 @@ public class StaffController {
         String reason = body.get("reason");
         return bookingService.createCancelRequestByStaff(id, reason);
     }
+
+    @PostMapping("/bookings/{id}/add-services")
+    public BookingResponse addServicesToBooking(
+            @PathVariable Long id,
+            @Valid @RequestBody com.autowash.features.booking.dto.request.AddServicesRequest request
+    ) {
+        return bookingService.addServicesToBooking(id, request);
+    }
 }

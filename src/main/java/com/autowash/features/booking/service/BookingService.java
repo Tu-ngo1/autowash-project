@@ -20,6 +20,7 @@ import com.autowash.features.booking.repository.PaymentRepository;
 import com.autowash.features.booking.mapper.BookingMapper;
 import com.autowash.features.car.entity.Car;
 import com.autowash.features.car.enums.CarStatus;
+import com.autowash.features.car.enums.VehicleSize;
 import com.autowash.features.car.repository.CarRepository;
 import com.autowash.features.user.entity.CustomerProfile;
 import com.autowash.features.user.entity.User;
@@ -1233,6 +1234,96 @@ public class BookingService {
         booking.setWashStartedAt(LocalDateTime.now());
 
         return bookingMapper.toResponse(bookingRepository.save(booking));
+    }
+
+    @Transactional
+    public BookingResponse addServicesToBooking(Long bookingId, com.autowash.features.booking.dto.request.AddServicesRequest request) {
+        Booking booking = findBookingOrThrow(bookingId);
+
+        if (booking.getCancelRequestStatus() == CancelRequestStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đơn đặt lịch đang ở trạng thái chờ duyệt hủy");
+        }
+
+        if (booking.getStatus() == BookingStatus.COMPLETED || booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể bổ sung dịch vụ cho đơn đặt lịch đã hoàn thành hoặc đã hủy");
+        }
+
+        if (request.getServiceIds() == null || request.getServiceIds().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn ít nhất 1 dịch vụ bổ sung");
+        }
+
+        Car car = booking.getVehicle();
+        if (car == null || car.getVehicleModel() == null || car.getVehicleModel().getVehicleSize() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy kích thước xe của đơn đặt lịch");
+        }
+
+        VehicleSize vehicleSize = car.getVehicleModel().getVehicleSize();
+
+        List<ServicePrice> addedPrices = new ArrayList<>();
+        for (Long id : request.getServiceIds()) {
+            ServicePrice price = servicePriceRepository.findByServiceIdAndVehicleSizeAndActiveTrue(id, vehicleSize)
+                    .orElseGet(() -> servicePriceRepository.findById(id)
+                            .orElseThrow(() -> new ResponseStatusException(
+                                    HttpStatus.NOT_FOUND, "Không tìm thấy dịch vụ tương thích với kích thước xe (ID: " + id + ")"
+                            )));
+            addedPrices.add(price);
+        }
+
+        int additionalSubTotal = addedPrices.stream().mapToInt(ServicePrice::getPrice).sum();
+        int additionalDuration = addedPrices.stream().mapToInt(ServicePrice::getDurationMinutes).sum();
+
+        for (ServicePrice price : addedPrices) {
+            BookingDetail detail = BookingDetail.builder()
+                    .booking(booking)
+                    .servicePrice(price)
+                    .actualPrice(price.getPrice())
+                    .actualDurationMinutes(price.getDurationMinutes())
+                    .build();
+            bookingDetailRepository.save(detail);
+            booking.getBookingDetails().add(detail);
+        }
+
+        int additionalTierDiscount = 0;
+        User customer = booking.getUser();
+        CustomerProfile profile = customer.getCustomerProfile();
+        if (profile != null && profile.getTierConfig() != null && profile.getTierConfig().getAutoDiscountPercent() != null) {
+            double discountPercent = profile.getTierConfig().getAutoDiscountPercent().doubleValue();
+            additionalTierDiscount = (int) Math.round((additionalSubTotal * discountPercent) / 100);
+        }
+
+        int additionalFinalPrice = Math.max(additionalSubTotal - additionalTierDiscount, 0);
+
+        booking.setTotalPrice(booking.getTotalPrice() + additionalSubTotal);
+        if (booking.getExpectedEndTime() != null) {
+            booking.setExpectedEndTime(booking.getExpectedEndTime().plusMinutes(additionalDuration));
+        }
+
+        Payment payment = booking.getPayment();
+        if (payment != null) {
+            payment.setSubTotal(payment.getSubTotal() + additionalSubTotal);
+            payment.setDiscountAmount(payment.getDiscountAmount() + additionalTierDiscount);
+            payment.setFinalPrice(payment.getFinalPrice() + additionalFinalPrice);
+
+            if (PaymentMethod.WALLET.equals(payment.getPaymentMethod()) && PaymentStatus.PAID.equals(payment.getPaymentStatus())) {
+                Wallet wallet = walletRepository.findByUserId(customer.getId()).orElse(null);
+                if (wallet != null && wallet.getBalance() >= additionalFinalPrice) {
+                    wallet.setBalance(wallet.getBalance() - additionalFinalPrice);
+                    walletRepository.save(wallet);
+
+                    WalletTransaction walletTx = WalletTransaction.builder()
+                            .wallet(wallet)
+                            .amount(-additionalFinalPrice)
+                            .transactionType(WalletTransactionType.PAYMENT)
+                            .description("Thanh toán bổ sung dịch vụ cho đơn " + booking.getBookingCode())
+                            .build();
+                    walletTransactionRepository.save(walletTx);
+                }
+            }
+            paymentRepository.save(payment);
+        }
+
+        Booking savedBooking = bookingRepository.save(booking);
+        return bookingMapper.toResponse(savedBooking);
     }
 
     public AdminBookingListResponse getAdminBookingsWithFilters(
