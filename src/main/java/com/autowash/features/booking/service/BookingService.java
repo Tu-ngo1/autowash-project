@@ -1336,7 +1336,7 @@ public class BookingService {
             booking.getBookingDetails().add(detail);
         }
 
-        // Tính giảm giá hạng thành viên
+        // 1. Tính giảm giá hạng thành viên (Tier Discount)
         int newTierDiscount = 0;
         User customer = booking.getUser();
         CustomerProfile profile = customer != null ? customer.getCustomerProfile() : null;
@@ -1345,41 +1345,64 @@ public class BookingService {
             newTierDiscount = (int) Math.round((newSubTotal * discountPercent) / 100);
         }
 
-        int newFinalPrice = Math.max(newSubTotal - newTierDiscount, 0);
-
+        // 2. Tính giảm giá Voucher (Voucher Discount nếu có)
+        int newVoucherDiscount = 0;
         Payment payment = booking.getPayment();
+        if (payment != null && payment.getAppliedVoucher() != null) {
+            CustomerVoucher customerVoucher = payment.getAppliedVoucher();
+            if (customerVoucher != null && customerVoucher.getPromotion() != null) {
+                Promotion p = customerVoucher.getPromotion();
+                if (p.getDiscountPercent() != null && p.getDiscountPercent().doubleValue() > 0) {
+                    int calc = (int) Math.round((newSubTotal * p.getDiscountPercent().doubleValue()) / 100.0);
+                    int maxDisc = p.getMaxDiscountAmount() != null ? p.getMaxDiscountAmount() : Integer.MAX_VALUE;
+                    newVoucherDiscount = Math.min(calc, maxDisc);
+                } else if (p.getDiscountAmount() != null) {
+                    newVoucherDiscount = p.getDiscountAmount();
+                }
+            }
+        }
+
+        int totalDiscountAmount = newTierDiscount + newVoucherDiscount;
+        int newFinalPrice = Math.max(newSubTotal - totalDiscountAmount, 0);
+
         int oldFinalPrice = (payment != null && payment.getFinalPrice() != null) ? payment.getFinalPrice() : (booking.getTotalPrice() != null ? booking.getTotalPrice() : 0);
 
         booking.setTotalPrice(newSubTotal);
         booking.setExpectedEndTime(proposedEndTime);
 
         if (payment != null) {
-            int priceDelta = newFinalPrice - oldFinalPrice;
+            int actualPaid = (payment.getActualPaidAmount() != null)
+                    ? payment.getActualPaidAmount()
+                    : (PaymentStatus.PAID.equals(payment.getPaymentStatus()) ? oldFinalPrice : 0);
+
+            int netDelta = newFinalPrice - actualPaid;
 
             payment.setSubTotal(newSubTotal);
-            payment.setDiscountAmount(newTierDiscount);
+            payment.setDiscountAmount(totalDiscountAmount);
             payment.setFinalPrice(newFinalPrice);
 
             if (PaymentStatus.PAID.equals(payment.getPaymentStatus()) && customer != null) {
                 Wallet wallet = walletRepository.findByUserId(customer.getId()).orElse(null);
                 if (wallet != null) {
-                    if (priceDelta > 0 && PaymentMethod.WALLET.equals(payment.getPaymentMethod())) {
+                    if (netDelta > 0 && PaymentMethod.WALLET.equals(payment.getPaymentMethod())) {
                         // Thu thêm từ Ví (nếu phương thức thanh toán ban đầu là Ví)
-                        if (wallet.getBalance() >= priceDelta) {
-                            wallet.setBalance(wallet.getBalance() - priceDelta);
+                        if (wallet.getBalance() >= netDelta) {
+                            wallet.setBalance(wallet.getBalance() - netDelta);
                             walletRepository.save(wallet);
 
                             WalletTransaction walletTx = WalletTransaction.builder()
                                     .wallet(wallet)
-                                    .amount(-priceDelta)
+                                    .amount(-netDelta)
                                     .transactionType(WalletTransactionType.PAYMENT)
                                     .description("Thanh toán điều chỉnh tăng dịch vụ cho đơn " + booking.getBookingCode())
                                     .build();
                             walletTransactionRepository.save(walletTx);
+
+                            payment.setActualPaidAmount(newFinalPrice);
                         }
-                    } else if (priceDelta < 0) {
+                    } else if (netDelta < 0) {
                         // Hoàn lại tiền thừa vào Ví khách cho TẤT CẢ các phương thức thanh toán trả trước (PAYOS, WALLET, BANK_TRANSFER)
-                        int refundAmount = Math.abs(priceDelta);
+                        int refundAmount = Math.abs(netDelta);
                         wallet.setBalance(wallet.getBalance() + refundAmount);
                         walletRepository.save(wallet);
 
@@ -1390,6 +1413,8 @@ public class BookingService {
                                 .description("Hoàn tiền chênh lệch giảm dịch vụ cho đơn " + booking.getBookingCode())
                                 .build();
                         walletTransactionRepository.save(walletTx);
+
+                        payment.setActualPaidAmount(newFinalPrice);
                     }
                 }
             }
