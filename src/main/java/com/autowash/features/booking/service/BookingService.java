@@ -75,6 +75,7 @@ import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -1101,7 +1102,8 @@ public class BookingService {
 
     @Transactional
     public List<WashBayResponse> getWashingBaysStatus() {
-        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+        LocalDate today = now.toLocalDate();
         DailyOperationsConfig config = dailyOperationsConfigRepository.findByConfigDate(today)
                 .orElse(DailyOperationsConfig.builder()
                         .configDate(today)
@@ -1123,9 +1125,17 @@ public class BookingService {
         allBayBookings.addAll(activeBookings);
         allBayBookings.addAll(waitingInBays);
 
+        // Chỉ xếp tự động các xe ARRIVED chưa vào khoang NẾU đã nằm trong khoảng thời gian cho phép (từ scheduledStartTime - 5 phút tới scheduledStartTime + 15 phút)
         List<Booking> queueBookings = new ArrayList<>(bookingRepository.findBookingsByStatus(BookingStatus.ARRIVED)
                 .stream()
                 .filter(b -> b.getBayNumber() == null)
+                .filter(b -> {
+                    LocalDateTime scheduled = b.getScheduledStartTime();
+                    if (scheduled == null) return true;
+                    LocalDateTime allowedMin = scheduled.minusMinutes(5);
+                    LocalDateTime allowedMax = scheduled.plusMinutes(15);
+                    return !now.isBefore(allowedMin) && !now.isAfter(allowedMax);
+                })
                 .sorted((b1, b2) -> {
                     int comp = b1.getScheduledStartTime().compareTo(b2.getScheduledStartTime());
                     if (comp != 0) {
@@ -1149,6 +1159,23 @@ public class BookingService {
             if (bookingInBay == null && queueIndex < queueBookings.size()) {
                 Booking nextBooking = queueBookings.get(queueIndex++);
                 nextBooking.setBayNumber(bayNum);
+
+                LocalDateTime scheduled = nextBooking.getScheduledStartTime();
+                // NẾU ĐÚNG GIỜ HOẶC SỚM DƯỚI 5 PHÚT (now <= scheduled): TỰ ĐỘNG BẮT ĐẦU RỬA (IN_PROGRESS)
+                // NẾU ĐẾN TRỄ DƯỚI 15P (now > scheduled): KHÔNG TỰ ĐỘNG RỬA, GIỮ TRẠNG THÁI ARRIVED ĐỂ STAFF NHẤN BẮT ĐẦU RỬA THỦ CÔNG
+                if (scheduled != null && !now.isAfter(scheduled)) {
+                    nextBooking.setStatus(BookingStatus.IN_PROGRESS);
+                    nextBooking.setWashStartedAt(now);
+
+                    int totalDurationMinutes = 0;
+                    if (nextBooking.getBookingDetails() != null && !nextBooking.getBookingDetails().isEmpty()) {
+                        totalDurationMinutes = nextBooking.getBookingDetails().stream()
+                                .mapToInt(d -> d.getActualDurationMinutes() != null ? d.getActualDurationMinutes() : 0)
+                                .sum();
+                    }
+                    if (totalDurationMinutes <= 0) totalDurationMinutes = 45;
+                    nextBooking.setExpectedEndTime(now.plusMinutes(totalDurationMinutes));
+                }
                 bookingInBay = bookingRepository.save(nextBooking);
             }
 
@@ -1186,6 +1213,28 @@ public class BookingService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lịch hẹn phải ở trạng thái đã check-in (ARRIVED) mới có thể cho vào khoang.");
         }
 
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+        LocalDateTime scheduled = booking.getScheduledStartTime();
+
+        if (scheduled != null) {
+            LocalDateTime minAllowedTime = scheduled.minusMinutes(5);
+            if (now.isBefore(minAllowedTime)) {
+                String formattedTime = scheduled.format(DateTimeFormatter.ofPattern("HH:mm"));
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Chưa tới giờ cho vào khoang rửa. Chỉ được đưa xe vào khoang trước tối đa 5 phút so với giờ hẹn (" + formattedTime + ")."
+                );
+            }
+
+            LocalDateTime maxAllowedTime = scheduled.plusMinutes(15);
+            if (now.isAfter(maxAllowedTime)) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Đơn hàng đã quá giờ hẹn quá 15 phút. Không thể cho vào khoang rửa."
+                );
+            }
+        }
+
         boolean bayOccupied = bookingRepository.findBookingsByStatus(BookingStatus.IN_PROGRESS)
                 .stream()
                 .anyMatch(b -> b.getBayNumber() != null && b.getBayNumber().equals(bayNumber));
@@ -1194,9 +1243,23 @@ public class BookingService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Khoang rửa " + bayNumber + " hiện đang có xe đang rửa.");
         }
 
-        booking.setStatus(BookingStatus.IN_PROGRESS);
         booking.setBayNumber(bayNumber);
-        booking.setWashStartedAt(LocalDateTime.now());
+
+        // NẾU ĐÚNG GIỜ HOẶC SỚM DƯỚI 5 PHÚT (now <= scheduled): TỰ ĐỘNG BẮT ĐẦU RỬA!
+        // NẾU ĐẾN TRỄ DƯỚI 15P (now > scheduled): KHÔNG TỰ ĐỘNG BẮT ĐẦU RỬA, GIỮ ARRIVED ĐỂ STAFF NHẤN
+        if (scheduled == null || !now.isAfter(scheduled)) {
+            booking.setStatus(BookingStatus.IN_PROGRESS);
+            booking.setWashStartedAt(now);
+
+            int totalDurationMinutes = 0;
+            if (booking.getBookingDetails() != null && !booking.getBookingDetails().isEmpty()) {
+                totalDurationMinutes = booking.getBookingDetails().stream()
+                        .mapToInt(d -> d.getActualDurationMinutes() != null ? d.getActualDurationMinutes() : 0)
+                        .sum();
+            }
+            if (totalDurationMinutes <= 0) totalDurationMinutes = 45;
+            booking.setExpectedEndTime(now.plusMinutes(totalDurationMinutes));
+        }
 
         return bookingMapper.toResponse(bookingRepository.save(booking));
     }
