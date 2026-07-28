@@ -74,6 +74,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -83,6 +84,8 @@ import java.util.ArrayList;
 @RequiredArgsConstructor
 @Slf4j
 public class BookingService {
+
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     private final BookingRepository bookingRepository;
     private final BookingDetailRepository bookingDetailRepository;
@@ -643,7 +646,7 @@ public class BookingService {
 
     private void validateBookingTime(LocalDateTime scheduledStartTime) {
         LocalDateTime earliestAllowedTime =
-                LocalDateTime.now().plusMinutes(MIN_BOOKING_BUFFER_MINUTES);
+                LocalDateTime.now(VIETNAM_ZONE).plusMinutes(MIN_BOOKING_BUFFER_MINUTES);
 
         if (scheduledStartTime.isBefore(earliestAllowedTime)) {
             throw new ResponseStatusException(
@@ -731,7 +734,7 @@ public class BookingService {
         int bookingWindowDays = getBookingWindowByTier(customer);
 
         LocalDateTime maxAllowedTime =
-                LocalDateTime.now().plusDays(bookingWindowDays);
+                LocalDateTime.now(VIETNAM_ZONE).plusDays(bookingWindowDays);
 
         if (scheduledStartTime.isAfter(maxAllowedTime)) {
             throw new ResponseStatusException(
@@ -801,7 +804,7 @@ public class BookingService {
 
     public List<AvailableSlotResponse> getAvailableSlots(LocalDate date, int totalDurationMinutes) {
         if (date == null) {
-            date = LocalDate.now();
+            date = LocalDate.now(VIETNAM_ZONE);
         }
 
         DailyOperationsConfig config = dailyOperationsConfigRepository.findByConfigDate(date)
@@ -833,7 +836,7 @@ public class BookingService {
 
         List<AvailableSlotResponse> availableSlots = new ArrayList<>();
         LocalTime currentStart = config.getOpenTime();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
         LocalDateTime minStartTimeAllowed = now.plusMinutes(MIN_BOOKING_BUFFER_MINUTES);
 
         while (currentStart.plusMinutes(neededDuration).isBefore(config.getCloseTime()) 
