@@ -1086,7 +1086,7 @@ public class BookingService {
 
         booking.setQrUsed(true);
         booking.setStatus(BookingStatus.ARRIVED);
-        booking.setArrivedAt(LocalDateTime.now());
+        booking.setArrivedAt(LocalDateTime.now(VIETNAM_ZONE));
         booking.setStaff(currentStaff);
 
         return bookingMapper.toResponse(bookingRepository.save(booking));
@@ -1670,14 +1670,9 @@ public class BookingService {
             booking.setCancelRequestAdminNote(adminNote.trim());
         }
 
-        if (booking.getPayment() != null) {
-            Payment payment = booking.getPayment();
-            payment.setPaymentStatus(PaymentStatus.REFUNDED);
-            paymentRepository.save(payment);
-        }
-
         Booking saved = bookingRepository.save(booking);
-        processRefund(saved, 1.0);
+        String refundReason = booking.getCancelRequestReason() != null ? booking.getCancelRequestReason() : "duyệt hủy đơn từ cửa hàng";
+        processRefund(saved, 1.0, refundReason);
 
         return bookingMapper.toResponse(saved);
     }
@@ -1763,13 +1758,8 @@ public class BookingService {
 
         if (booking.getStatus() != BookingStatus.CANCELLED) {
             booking.setStatus(BookingStatus.CANCELLED);
-            if (booking.getPayment() != null) {
-                Payment payment = booking.getPayment();
-                payment.setPaymentStatus(PaymentStatus.REFUNDED);
-                paymentRepository.save(payment);
-            }
             bookingRepository.save(booking);
-            processRefund(booking, 1.0);
+            processRefund(booking, 1.0, "Admin xóa/hủy đơn trực tiếp");
         }
     }
 
