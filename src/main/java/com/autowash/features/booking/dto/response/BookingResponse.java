@@ -53,6 +53,9 @@ public class BookingResponse {
     private LocalDateTime cancelRequestedAt;
     private String cancelRequestAdminNote;
     private String checkoutUrl;
+    private Integer reviewRating;
+    private String reviewComment;
+    private LocalDateTime reviewCreatedAt;
 }
 
 

@@ -13,4 +13,6 @@ public class ServiceResponse {
     private String name;
     private String description;
     private Boolean active;
+    private Double rating;
+    private Long ratingCount;
 }

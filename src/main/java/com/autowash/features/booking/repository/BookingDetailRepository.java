@@ -39,6 +39,16 @@ public interface BookingDetailRepository extends JpaRepository<BookingDetail, Lo
         GROUP BY s.id, s.name
     """)
     List<ServiceRatioResponse> getServiceRatios();
+
+    @Query("""
+        SELECT sp.service.id, SUM(CAST(bd.actualPrice AS long))
+        FROM BookingDetail bd
+        JOIN bd.servicePrice sp
+        JOIN bd.booking b
+        WHERE b.status = com.autowash.features.booking.enums.BookingStatus.COMPLETED
+        GROUP BY sp.service.id
+    """)
+    List<Object[]> findServiceRevenueStats();
 }
 
 

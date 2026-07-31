@@ -21,6 +21,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.autowash.features.booking.repository.ReviewRepository;
+import com.autowash.features.booking.repository.BookingDetailRepository;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.List;
 
 @org.springframework.stereotype.Service
@@ -30,6 +34,8 @@ public class WashService {
     private final ServiceRepository serviceRepository;
     private final ServicePriceRepository servicePriceRepository;
     private final CarRepository carRepository;
+    private final ReviewRepository reviewRepository;
+    private final BookingDetailRepository bookingDetailRepository;
 
     // Admin tạo dịch vụ mới
     public ServiceResponse createService(CreateServiceRequest request) {
@@ -123,13 +129,54 @@ public class WashService {
                 ));
     }
 
+    private Map<Long, Double[]> getServiceRatingStatsMap() {
+        Map<Long, Double[]> map = new HashMap<>();
+        try {
+            List<Object[]> stats = reviewRepository.findServiceRatingStats();
+            for (Object[] row : stats) {
+                if (row[0] != null) {
+                    Long serviceId = ((Number) row[0]).longValue();
+                    Double avgRating = row[1] != null ? Math.round(((Number) row[1]).doubleValue() * 10.0) / 10.0 : null;
+                    Double ratingCount = row[2] != null ? ((Number) row[2]).doubleValue() : 0.0;
+                    map.put(serviceId, new Double[]{avgRating, ratingCount});
+                }
+            }
+        } catch (Exception e) {
+            // fallback if table/query has issues
+        }
+        return map;
+    }
+
+    private Map<Long, Long> getServiceRevenueStatsMap() {
+        Map<Long, Long> map = new HashMap<>();
+        try {
+            List<Object[]> stats = bookingDetailRepository.findServiceRevenueStats();
+            for (Object[] row : stats) {
+                if (row[0] != null) {
+                    Long serviceId = ((Number) row[0]).longValue();
+                    Long totalRevenue = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+                    map.put(serviceId, totalRevenue);
+                }
+            }
+        } catch (Exception e) {
+            // fallback
+        }
+        return map;
+    }
+
     // Convert Entity sang DTO Response
     private ServiceResponse toServiceResponse(Service service) {
+        Double[] ratingStats = getServiceRatingStatsMap().get(service.getId());
+        Double rating = ratingStats != null ? ratingStats[0] : null;
+        Long ratingCount = ratingStats != null ? ratingStats[1].longValue() : 0L;
+
         return ServiceResponse.builder()
                 .id(service.getId())
                 .name(service.getName())
                 .description(service.getDescription())
                 .active(service.getActive())
+                .rating(rating)
+                .ratingCount(ratingCount)
                 .build();
     }
 
@@ -145,19 +192,30 @@ public class WashService {
                 .filter(price -> Boolean.TRUE.equals(price.getActive()) && price.getService() != null && Boolean.TRUE.equals(price.getService().getActive()))
                 .toList();
 
+        Map<Long, Double[]> ratingMap = getServiceRatingStatsMap();
+
         return prices.stream()
-                .map(price -> AvailableServiceResponse.builder()
-                        .id(price.getService().getId())
-                        .serviceId(price.getService().getId())
-                        .name(price.getService().getName())
-                        .serviceName(price.getService().getName())
-                        .description(price.getService().getDescription())
-                        .servicePriceId(price.getId())
-                        .price(price.getPrice())
-                        .durationMinutes(price.getDurationMinutes())
-                        .vehicleSize(price.getVehicleSize() != null ? price.getVehicleSize().name() : targetSize.name())
-                        .isMainService(price.getService().getIsMainService())
-                        .build())
+                .map(price -> {
+                    Long sId = price.getService().getId();
+                    Double[] ratingStats = ratingMap.get(sId);
+                    Double rating = ratingStats != null ? ratingStats[0] : null;
+                    Long ratingCount = ratingStats != null ? ratingStats[1].longValue() : 0L;
+
+                    return AvailableServiceResponse.builder()
+                            .id(price.getService().getId())
+                            .serviceId(price.getService().getId())
+                            .name(price.getService().getName())
+                            .serviceName(price.getService().getName())
+                            .description(price.getService().getDescription())
+                            .servicePriceId(price.getId())
+                            .price(price.getPrice())
+                            .durationMinutes(price.getDurationMinutes())
+                            .vehicleSize(price.getVehicleSize() != null ? price.getVehicleSize().name() : targetSize.name())
+                            .isMainService(price.getService().getIsMainService())
+                            .rating(rating)
+                            .ratingCount(ratingCount)
+                            .build();
+                })
                 .toList();
     }
 
@@ -250,8 +308,11 @@ public class WashService {
     }
 
     public List<AdminServiceResponse> getAdminServicesWithPrices() {
+        Map<Long, Double[]> ratingMap = getServiceRatingStatsMap();
+        Map<Long, Long> revenueMap = getServiceRevenueStatsMap();
+
         return serviceRepository.findAll().stream()
-                .map(this::mapToAdminResponse)
+                .map(s -> mapToAdminResponse(s, ratingMap, revenueMap))
                 .toList();
     }
 
@@ -286,6 +347,10 @@ public class WashService {
     }
 
     private AdminServiceResponse mapToAdminResponse(Service s) {
+        return mapToAdminResponse(s, getServiceRatingStatsMap(), getServiceRevenueStatsMap());
+    }
+
+    private AdminServiceResponse mapToAdminResponse(Service s, Map<Long, Double[]> ratingMap, Map<Long, Long> revenueMap) {
         List<ServicePrice> prices = servicePriceRepository.findByServiceId(s.getId());
         List<AdminServiceResponse.PriceDetail> priceDetails = prices.stream()
                 .map(p -> AdminServiceResponse.PriceDetail.builder()
@@ -297,6 +362,11 @@ public class WashService {
                         .build())
                 .toList();
 
+        Double[] ratingStats = ratingMap.get(s.getId());
+        Double rating = ratingStats != null ? ratingStats[0] : null;
+        Long ratingCount = ratingStats != null ? ratingStats[1].longValue() : 0L;
+        Long totalRevenue = revenueMap.getOrDefault(s.getId(), 0L);
+
         return AdminServiceResponse.builder()
                 .id(s.getId())
                 .name(s.getName())
@@ -304,6 +374,9 @@ public class WashService {
                 .active(s.getActive())
                 .isMainService(s.getIsMainService())
                 .servicePrices(priceDetails)
+                .rating(rating)
+                .ratingCount(ratingCount)
+                .totalRevenue(totalRevenue)
                 .build();
     }
 }

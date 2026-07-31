@@ -13,6 +13,9 @@ public class AdminServiceResponse {
     private String description;
     private Boolean active;
     private Boolean isMainService;
+    private Double rating;
+    private Long ratingCount;
+    private Long totalRevenue;
     private List<PriceDetail> servicePrices;
 
     @Data

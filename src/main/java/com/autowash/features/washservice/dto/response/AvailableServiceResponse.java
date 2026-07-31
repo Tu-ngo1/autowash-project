@@ -20,4 +20,6 @@ public class AvailableServiceResponse {
     private Integer durationMinutes;
     private String vehicleSize;
     private Boolean isMainService;
+    private Double rating;
+    private Long ratingCount;
 }

@@ -106,6 +106,9 @@ public class Booking {
     @OneToOne(mappedBy = "booking")
     private Payment payment;
 
+    @OneToOne(mappedBy = "booking")
+    private Review review;
+
     @ManyToOne
     @JoinColumn(name = "Staff_id")
     private User staff;

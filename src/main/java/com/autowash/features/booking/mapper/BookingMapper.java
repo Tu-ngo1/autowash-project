@@ -79,6 +79,16 @@ public class BookingMapper {
             vehicleSize = booking.getVehicle().getVehicleModel().getVehicleSize().name();
         }
 
+        Integer reviewRating = null;
+        String reviewComment = null;
+        java.time.LocalDateTime reviewCreatedAt = null;
+
+        if (booking.getReview() != null) {
+            reviewRating = booking.getReview().getRating();
+            reviewComment = booking.getReview().getComment();
+            reviewCreatedAt = booking.getReview().getCreatedAt();
+        }
+
         return BookingResponse.builder()
                 .id(booking.getId())
                 .bookingCode(booking.getBookingCode())
@@ -114,6 +124,9 @@ public class BookingMapper {
                 .cancelRequestedByName(booking.getCancelRequestedBy() != null ? booking.getCancelRequestedBy().getFullName() : null)
                 .cancelRequestedAt(booking.getCancelRequestedAt())
                 .cancelRequestAdminNote(booking.getCancelRequestAdminNote())
+                .reviewRating(reviewRating)
+                .reviewComment(reviewComment)
+                .reviewCreatedAt(reviewCreatedAt)
                 .build();
     }
 
